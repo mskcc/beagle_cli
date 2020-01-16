@@ -25,6 +25,7 @@ API = {
     "storage": "v0/fs/storage/",
     "file-types": 'v0/fs/file-types/',
     "files": '/v0/fs/files/',
+    "file-groups": 'v0/fs/file-groups/',
 }
 
 USAGE = """
@@ -38,6 +39,8 @@ Usage:
   beagle_cli.py storage list
   beagle_cli.py file-types create <file_type>
   beagle_cli.py file-types list
+  beagle_cli.py file-group create <file_group_name> <storage>
+  beagle_cli.py file-group list [--page-size=<page_size>]
   beagle_cli.py --version
 
 Options:
@@ -106,6 +109,13 @@ def file_types_commands(arguments, config):
         return _create_file_type(arguments, config)
 
 
+def file_group_commands(arguments, config):
+    if arguments.get('list'):
+        return _get_file_groups_command(arguments, config)
+    if arguments.get('create'):
+        return _create_file_group(arguments, config)
+
+
 def command(arguments, config):
     if arguments.get('files'):
         return files_commands(arguments, config)
@@ -113,6 +123,8 @@ def command(arguments, config):
         return storage_commands(arguments, config)
     if arguments.get('file-types'):
         return file_types_commands(arguments, config)
+    if arguments.get('file-group'):
+        return file_group_commands(arguments, config)
 
 
 # Authentication
@@ -162,6 +174,18 @@ def _check_is_authenticated(config):
 
 
 # List commands
+
+def _get_file_groups_command(arguments, config):
+    page_size = arguments.get('--page-size')
+    params = dict()
+    if page_size:
+        params['page_size'] = page_size
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['file-groups']),
+                            headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response_json = json.dumps(response.json(), indent=4)
+    config.set('prev', None)
+    config.set('next', None)
+    return response_json
 
 
 def _get_file_types_command(arguments, config):
@@ -229,6 +253,18 @@ def prev(config):
 
 
 # Create
+
+def _create_file_group(arguments, config):
+    file_group_name = arguments.get('<file_group_name>')
+    storage = arguments.get('<storage>')
+    body = {
+        "name": file_group_name,
+        "storage": storage
+    }
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['file-groups']), data=body,
+                             headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
 
 
 def _create_file(arguments, config):
