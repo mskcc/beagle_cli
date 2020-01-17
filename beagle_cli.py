@@ -44,7 +44,7 @@ Usage:
   beagle_cli.py file-types list
   beagle_cli.py file-group create <file_group_name> <storage>
   beagle_cli.py file-group list [--page-size=<page_size>]
-  beagle_cli.py run list
+  beagle_cli.py run list [--run-id=<run_id>] [--page-size=<page_size>]
   beagle_cli.py --version
 
 Options:
@@ -185,11 +185,15 @@ def _check_is_authenticated(config):
 # List commands
 
 def _get_runs_command(arguments, config):
+    run_id = arguments.get('--run-id')
     page_size = arguments.get('--page-size')
     params = dict()
     if page_size:
         params['page_size'] = page_size
-    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['run']),
+    url = urljoin(BEAGLE_ENDPOINT, API['run'])
+    if run_id:
+        url = url + run_id
+    response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     config.set('prev', None)
