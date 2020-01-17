@@ -26,7 +26,8 @@ conda:
 
 # install the Beagle requirements
 install: conda
-	pip install -r requirements.txt
+	pip install -e .
+	# pip install -r requirements.txt
 
 # interactive bash session with the environment updated
 bash:
