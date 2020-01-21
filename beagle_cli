@@ -44,7 +44,8 @@ Usage:
   beagle_cli.py file-types list
   beagle_cli.py file-group create <file_group_name> <storage>
   beagle_cli.py file-group list [--page-size=<page_size>]
-  beagle_cli.py run list [--run-id=<run_id>] [--page-size=<page_size>]
+  beagle_cli.py run list [--page-size=<page_size>]
+  beagle_cli.py run [--run-id=<run_id>]
   beagle_cli.py --version
 
 Options:
@@ -122,6 +123,8 @@ def file_group_commands(arguments, config):
 def run_commands(arguments, config):
     if arguments.get('list'):
         return _get_runs_command(arguments, config)
+    if arguments.get('--run-id'):
+        return _get_single_run_command(arguments, config)
 
 def command(arguments, config):
     if arguments.get('files'):
@@ -183,21 +186,24 @@ def _check_is_authenticated(config):
 
 
 # List commands
+def _get_single_run_command(arguments, config):
+    run_id = arguments.get('--run-id')
+    url = urljoin(BEAGLE_ENDPOINT, API['run']) + run_id
+    response = requests.get(url,
+                            headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
 
 def _get_runs_command(arguments, config):
-    run_id = arguments.get('--run-id')
     page_size = arguments.get('--page-size')
     params = dict()
     if page_size:
         params['page_size'] = page_size
     url = urljoin(BEAGLE_ENDPOINT, API['run'])
-    if run_id:
-        url = url + run_id
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
-    config.set('prev', None)
-    config.set('next', None)
+    _set_next_and_prev(config, response.json())
     return response_json
 
 def _get_file_groups_command(arguments, config):
