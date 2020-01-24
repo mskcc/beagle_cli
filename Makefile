@@ -25,9 +25,9 @@ conda:
 	rm -f "$(CONDASH)"
 
 # install the Beagle requirements
+# pip install git+https://github.com/mskcc/beagle_cli.git
 install: conda
 	pip install .
-	# pip install -r requirements.txt
 
 # interactive bash session with the environment updated
 bash:
