@@ -6,11 +6,11 @@ Command line interface for Beagle
 Examples
 --------
 
-$ beagle_cli run list --request-id 09324_C --page-size 100
+$ beaglecli run list --request-id 09324_C --page-size 100
 
-$ beagle_cli run --run-id 648a7108-bafe-455a-a98e-67be7425562b
+$ beaglecli run get 648a7108-bafe-455a-a98e-67be7425562b
 
-$ beagle_cli files list --metadata=requestId:09324_C
+$ beaglecli files list --metadata=requestId:09324_C
 
 """
 import os
@@ -45,21 +45,21 @@ API = {
 }
 
 USAGE = """
-Beagle API.
+Beagle API Command Line Interface
 
 Usage:
-  beagle_cli.py files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
-  beagle_cli.py files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
-  beagle_cli.py files list [--page-size=<page_size>] [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
-  beagle_cli.py storage create <storage_name>
-  beagle_cli.py storage list
-  beagle_cli.py file-types create <file_type>
-  beagle_cli.py file-types list
-  beagle_cli.py file-group create <file_group_name> <storage>
-  beagle_cli.py file-group list [--page-size=<page_size>]
-  beagle_cli.py run list [--page-size=<page_size>] [--request-id=<request_id>]...
-  beagle_cli.py run [--run-id=<run_id>]
-  beagle_cli.py --version
+  beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
+  beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
+  beaglecli files list [--page-size=<page_size>] [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
+  beaglecli storage create <storage_name>
+  beaglecli storage list
+  beaglecli file-types create <file_type>
+  beaglecli file-types list
+  beaglecli file-group create <file_group_name> <storage>
+  beaglecli file-group list [--page-size=<page_size>]
+  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]...
+  beaglecli run get <run_id>
+  beaglecli --version
 
 Options:
   -h --help     Show this screen.
@@ -136,7 +136,7 @@ def file_group_commands(arguments, config):
 def run_commands(arguments, config):
     if arguments.get('list'):
         return _get_runs_command(arguments, config)
-    if arguments.get('--run-id'):
+    if arguments.get('get'):
         return _get_single_run_command(arguments, config)
 
 def command(arguments, config):
@@ -200,7 +200,7 @@ def _check_is_authenticated(config):
 
 # List commands
 def _get_single_run_command(arguments, config):
-    run_id = arguments.get('--run-id')
+    run_id = arguments.get('<run_id>')
     url = urljoin(BEAGLE_ENDPOINT, API['run']) + run_id
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token})
