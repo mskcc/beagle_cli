@@ -41,8 +41,17 @@ def get_run_type(run_id):
     data = BEAGLE.get_run(run_id)
     return data['run']
 
+def get_file_id_from_run_id(run_id):
+    """
+    Get the file id from the run id that imported it 
+    """
+    data = BEAGLE.get_run(run_id)
+    file_path = data['args']['filepath']
+    return BEAGLE.get_file_id_by_path(file_path)
+
 if __name__ == "__main__":
     REQUEST_ID = sys.argv[1]
+    OUTSCRIPT = sys.argv[2]
 
     print("Retrieving root etl job IDs for %s" % REQUEST_ID)
     FETCH_SAMPLE_JOBS = get_jobs(REQUEST_ID)
@@ -59,9 +68,9 @@ if __name__ == "__main__":
         for child_job in child_jobs:
             run_type = get_run_type(child_job)
             if run_type == "beagle_etl.jobs.lims_etl_jobs.create_pooled_normal":
-                files_to_deregister.add(child_job)
-            else:
-                runs_to_deregister.add(child_job)
+                pooled_normal_file_id = get_file_id_from_run_id(child_job)
+                files_to_deregister.add(pooled_normal_file_id)
+            runs_to_deregister.add(child_job)
 
     runs_to_deregister = list(runs_to_deregister.union(set(FETCH_SAMPLE_JOBS)))
     files_to_deregister = list(files_to_deregister)
@@ -72,5 +81,10 @@ if __name__ == "__main__":
     print("Got %i files and %i runs to deregister. See beaglecli command output to execute."
             % (num_files_to_deregister,num_runs_to_deregister))
 
-    print("../beaglecli etl delete --job-id=%s" % (" --job-id=".join(runs_to_deregister)))
-    print("../beaglecli files delete --file-id=%s" % (" --file-id=".join(files_to_deregister)))
+    with open(OUTSCRIPT, 'w') as output_file:
+        for i in runs_to_deregister:
+            output_file.write("../beaglecli etl delete --job-id=%s\n" % i)
+
+        for i in files_to_deregister:
+            if i:
+                output_file.write("../beaglecli files delete --file-id=%s\n" % i)
