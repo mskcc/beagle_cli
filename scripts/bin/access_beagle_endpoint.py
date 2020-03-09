@@ -18,12 +18,12 @@ class AccessBeagleEndpoint:
     return req.json()
 
   # had to build url weird because the requests docs were busted and I kept running into issues
-  def get_run_request(self, request_id):
+  def get_etl_jobs_by_request(self, request_id):
     url =  "%s/v0/etl/jobs/?page_size=1000&request_id=%s" % (self.API, request_id)
     return self.run_url(url)
 
 
-  def get_run(self, run_id):
+  def get_etl_job(self, run_id):
     url =  "%s/v0/etl/jobs/%s" % (self.API, run_id)
     return self.run_url(url)
 

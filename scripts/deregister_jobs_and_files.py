@@ -16,7 +16,7 @@ def get_jobs(request_id):
     """
     From request_id, get all related run data
     """
-    data = BEAGLE.get_run_request(request_id)['results']
+    data = BEAGLE.get_etl_jobs_by_request(request_id)['results']
 
     ids_fetch_samples = set()
 
@@ -31,21 +31,21 @@ def get_children_from_job(run_id):
     """
     Retrieves children from main job
     """
-    data = BEAGLE.get_run(run_id)
+    data = BEAGLE.get_etl_job(run_id)
     return data['children']
 
 def get_run_type(run_id):
     """
     We're assuming we get just one record here
     """
-    data = BEAGLE.get_run(run_id)
+    data = BEAGLE.get_etl_job(run_id)
     return data['run']
 
 def get_file_id_from_run_id(run_id):
     """
     Get the file id from the run id that imported it 
     """
-    data = BEAGLE.get_run(run_id)
+    data = BEAGLE.get_etl_job(run_id)
     file_path = data['args']['filepath']
     return BEAGLE.get_file_id_by_path(file_path)
 
