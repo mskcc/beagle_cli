@@ -39,7 +39,7 @@ def get_run_type(run_id):
     We're assuming we get just one record here
     """
     data = BEAGLE.get_etl_job(run_id)
-    return data['run']
+    return data.get('run')
 
 def get_file_id_from_run_id(run_id):
     """
