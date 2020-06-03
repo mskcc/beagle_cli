@@ -41,7 +41,8 @@ API = {
     "file-types": 'v0/fs/file-types/',
     "files": '/v0/fs/files/',
     "file-groups": 'v0/fs/file-groups/',
-    'run': '/v0/run/api/'
+    'run': '/v0/run/api/',
+    'update-requests': '/v0/etl/update-requests/'
 }
 
 USAGE = """
@@ -59,6 +60,7 @@ Usage:
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]...
   beaglecli run get <run_id>
+  beaglecli update-requests <request_id>...
   beaglecli --version
 
 Options:
@@ -139,6 +141,10 @@ def run_commands(arguments, config):
     if arguments.get('get'):
         return _get_single_run_command(arguments, config)
 
+def update_commands(argumens, config):
+    return _update_requests_command(arguments, config)
+
+
 def command(arguments, config):
     if arguments.get('files'):
         return files_commands(arguments, config)
@@ -150,6 +156,8 @@ def command(arguments, config):
         return file_group_commands(arguments, config)
     if arguments.get('run'):
         return(run_commands(arguments, config))
+    if arguments.get('update-requests'):
+        return(update_commands(arguments, config))
 
 
 # Authentication
@@ -389,6 +397,21 @@ def _update_file(arguments, config):
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
+def _update_requests_command(arguments, config):
+    request_ids = arguments.get('<request_id>')
+    body = {
+        "request_ids": request_ids
+    }
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['update-requests']), data=json.dumps(body),
+                             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+    if response.ok:
+        response_json = json.dumps(response.json(), indent=4)
+        return response_json
+    else:
+        print("ERROR: bad response from server for request_ids: {}".format(request_ids))
+        print(response)
+        print(response.reason)
+        print(response.request.body)
 
 if __name__ == '__main__':
     config = Config.load()
