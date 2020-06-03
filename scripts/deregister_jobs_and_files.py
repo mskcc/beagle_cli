@@ -39,7 +39,9 @@ def get_run_type(run_id):
     We're assuming we get just one record here
     """
     data = BEAGLE.get_etl_job(run_id)
-    return data['run']
+    if 'run' in data:
+        return data['run']
+    return None
 
 def get_file_id_from_run_id(run_id):
     """
@@ -67,9 +69,10 @@ if __name__ == "__main__":
         child_jobs = get_children_from_job(job_id)
         for child_job in child_jobs:
             run_type = get_run_type(child_job)
-            if run_type == "beagle_etl.jobs.lims_etl_jobs.create_pooled_normal":
-                pooled_normal_file_id = get_file_id_from_run_id(child_job)
-                files_to_deregister.add(pooled_normal_file_id)
+            if run_type:
+                if run_type == "beagle_etl.jobs.lims_etl_jobs.create_pooled_normal":
+                    pooled_normal_file_id = get_file_id_from_run_id(child_job)
+                    files_to_deregister.add(pooled_normal_file_id)
             runs_to_deregister.add(child_job)
 
     runs_to_deregister = list(runs_to_deregister.union(set(FETCH_SAMPLE_JOBS)))
