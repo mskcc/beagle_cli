@@ -41,7 +41,9 @@ API = {
     "file-types": 'v0/fs/file-types/',
     "files": '/v0/fs/files/',
     "file-groups": 'v0/fs/file-groups/',
-    'run': '/v0/run/api/'
+    'run': '/v0/run/api/',
+    'etl': '/v0/etl/jobs/',
+    'update-requests': '/v0/etl/update-requests/'
 }
 
 USAGE = """
@@ -50,15 +52,18 @@ Beagle API Command Line Interface
 Usage:
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
-  beaglecli files list [--page-size=<page_size>] [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
+  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
+  beaglecli files delete --file-id=<file_id>...
   beaglecli storage create <storage_name>
   beaglecli storage list
   beaglecli file-types create <file_type>
   beaglecli file-types list
   beaglecli file-group create <file_group_name> <storage>
   beaglecli file-group list [--page-size=<page_size>]
+  beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]...
   beaglecli run get <run_id>
+  beaglecli update-requests <request_id>...
   beaglecli --version
 
 Options:
@@ -105,8 +110,10 @@ class Config(object):
 
 
 def files_commands(arguments, config):
+    if arguments.get('delete'):
+        return _delete_file_command(arguments, config)
     if arguments.get('list'):
-        return _get_files(arguments, config)
+        return _list_files(arguments, config)
     if arguments.get('create'):
         return _create_file(arguments, config)
     if arguments.get('update'):
@@ -115,7 +122,7 @@ def files_commands(arguments, config):
 
 def storage_commands(arguments, config):
     if arguments.get('list'):
-        return _get_storage(arguments, config)
+        return _list_storage(arguments, config)
     if arguments.get('create'):
         return _create_storage(arguments, config)
 
@@ -133,11 +140,19 @@ def file_group_commands(arguments, config):
     if arguments.get('create'):
         return _create_file_group(arguments, config)
 
+
 def run_commands(arguments, config):
     if arguments.get('list'):
         return _get_runs_command(arguments, config)
     if arguments.get('get'):
         return _get_single_run_command(arguments, config)
+
+def etl_job_commands(arguments, config):
+    if arguments.get('delete'):
+        return _delete_etl_job_command(arguments, config)
+def update_commands(argumens, config):
+    return _update_requests_command(arguments, config)
+
 
 def command(arguments, config):
     if arguments.get('files'):
@@ -149,7 +164,11 @@ def command(arguments, config):
     if arguments.get('file-group'):
         return file_group_commands(arguments, config)
     if arguments.get('run'):
-        return(run_commands(arguments, config))
+        return run_commands(arguments, config)
+    if arguments.get('etl'):
+        return etl_job_commands(arguments, config)
+    if arguments.get('update-requests'):
+        return(update_commands(arguments, config))
 
 
 # Authentication
@@ -198,7 +217,17 @@ def _check_is_authenticated(config):
     return False
 
 
-# List commands
+# Get commands
+
+def _get_run_command(arguments, config):
+    run_id = arguments.get('<run_id>')
+    url = urljoin(BEAGLE_ENDPOINT, API['run']) + run_id
+    response = requests.get(url,
+                            headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
+
 def _get_single_run_command(arguments, config):
     run_id = arguments.get('<run_id>')
     url = urljoin(BEAGLE_ENDPOINT, API['run']) + run_id
@@ -206,6 +235,10 @@ def _get_single_run_command(arguments, config):
                             headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
+
+# List commands
+
 
 def _get_runs_command(arguments, config):
     page_size = arguments.get('--page-size')
@@ -221,6 +254,7 @@ def _get_runs_command(arguments, config):
     response_json = json.dumps(response.json(), indent=4)
     _set_next_and_prev(config, response.json())
     return response_json
+
 
 def _get_file_groups_command(arguments, config):
     page_size = arguments.get('--page-size')
@@ -248,7 +282,7 @@ def _get_file_types_command(arguments, config):
     return response_json
 
 
-def _get_storage(arguments, config):
+def _list_storage(arguments, config):
     page_size = arguments.get('--page-size')
     params = dict()
     if page_size:
@@ -259,13 +293,15 @@ def _get_storage(arguments, config):
     return response_json
 
 
-def _get_files(arguments, config):
+def _list_files(arguments, config):
+    paths = arguments.get('--path')
     metadata = arguments.get('--metadata')
     file_group = arguments.get('--file-group')
     file_name = arguments.get('--file-name')
     filename_regex = arguments.get('--filename-regex')
     page_size = arguments.get('--page-size')
     params = dict()
+    params['path'] = paths
     params['metadata'] = metadata
     params['file_group'] = file_group
     params['file_name'] = file_name
@@ -328,13 +364,14 @@ def _create_file(arguments, config):
     body = {
         "path": path,
         "metadata": json.dumps(metadata),
-        "file_group_id": file_group_id,
+        "file_group": file_group_id,
         "file_type": file_type,
     }
     if size:
         body["size"] = size
     response = requests.post(urljoin(BEAGLE_ENDPOINT, API['files']), data=body,
                              headers={'Authorization': 'Bearer %s' % config.token})
+    print(response)
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
@@ -388,6 +425,43 @@ def _update_file(arguments, config):
                              headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
+def _update_requests_command(arguments, config):
+    request_ids = arguments.get('<request_id>')
+    body = {
+        "request_ids": request_ids
+    }
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['update-requests']), data=json.dumps(body),
+                             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+    if response.ok:
+        response_json = json.dumps(response.json(), indent=4)
+        return response_json
+    else:
+        print("ERROR: bad response from server for request_ids: {}".format(request_ids))
+        print(response)
+        print(response.reason)
+        print(response.request.body)
+
+# Delete
+
+def _delete_file_command(arguments, config):
+    file_ids = arguments.get('--file-id')
+    result = dict()
+    for job in file_ids:
+        url = urljoin(BEAGLE_ENDPOINT, API['files']) + job
+        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
+    return result
+
+
+def _delete_etl_job_command(arguments, config):
+    job_ids = arguments.get('--job-id')
+    result = dict()
+    for job in job_ids:
+        url = urljoin(BEAGLE_ENDPOINT, API['etl']) + job
+        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
+    return result
 
 
 if __name__ == '__main__':
