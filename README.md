@@ -35,6 +35,7 @@ Usage:
 - List files by the sampleId
   ```
   beaglecli files list --metadata=sampleId:07973_BO_6
+
   ```
 - Create registration of file into Beagle database
   ```
