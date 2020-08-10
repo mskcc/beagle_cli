@@ -470,18 +470,16 @@ def _delete_etl_job_command(arguments, config):
 
 def _submit_operator_request_run(arguments, config):
     request_ids = arguments.get('--request-ids')
+    request_ids = request_ids.split(',')
     pipeline = arguments.get('--pipeline')
     job_group_id = arguments.get('--job-group-id')
     for_each = arguments.get('--for-each')
     body = {
+            'request_ids': request_ids,
             'pipeline': pipeline,
             'for_each': True,
             'job_group_id': None
            }
-
-    if request_ids:
-        request_ids = request_ids.split(',')
-        body['request_ids'] = request_ids
     if job_group_id:
         body['job_group_id'] = job_group_id
     if for_each:
