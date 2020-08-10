@@ -496,7 +496,7 @@ def _submit_operator_request_run(arguments, config):
 if __name__ == '__main__':
     config = Config.load()
     authenticate_command(config)
-    arguments = docopt(USAGE, version='Beagle API 0.1.0')
+    arguments = docopt(USAGE, version='Beagle API 0.2.0')
     result = command(arguments, config)
     print(result)
     if arguments.get('list'):
