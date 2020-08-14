@@ -6,7 +6,7 @@ Beagle API Command Line Utility
   - `python 3`
 
 - Instructions
-  - `pip install -r requirements-cli.txt`
+  - `pip install -r requirements.txt`
 
 - Run
   - `./beaglecli`
