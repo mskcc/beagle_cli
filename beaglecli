@@ -23,6 +23,8 @@ from urllib.parse import urljoin
 
 
 BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://silo:5001')
+BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
+BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
 
 
 CONFIG_TEMPLATE = {
@@ -181,25 +183,28 @@ def command(arguments, config):
 def authenticate_command(config):
     if _check_is_authenticated(config):
         return
-    while True:
-        username = input("Username: ")
-        if not username:
-            print("Username needs to be specified")
-            continue
-        password = getpass.getpass("Password: ")
-        if not password:
-            print("Password needs to be specified")
-            continue
-        try:
-            tokens = _authenticate(username, password)
-        except Exception as e:
-            print("Invalid username or password")
-            continue
-        else:
-            config.set('token', tokens['access'])
-            config.set('refresh', tokens['refresh'])
-            print("Successfully authenticated")
-            return
+    if BEAGLE_USER and BEAGLE_PW:
+        username = BEAGLE_USER
+        password = BEAGLE_PW
+    else:
+        while True:
+            username = input("Username: ")
+            if not username:
+                print("Username needs to be specified")
+                continue
+            password = getpass.getpass("Password: ")
+            if not password:
+                print("Password needs to be specified")
+                continue
+    try:
+        tokens = _authenticate(username, password)
+    except Exception as e:
+        print("Invalid username or password")
+    else:
+        config.set('token', tokens['access'])
+        config.set('refresh', tokens['refresh'])
+        print("Successfully authenticated")
+        return
 
 
 def _authenticate(username, password):
