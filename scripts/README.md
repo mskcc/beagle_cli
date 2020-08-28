@@ -3,8 +3,8 @@ This will retrieve runs and files associated with a `request_id` and then builds
 Prerequisite:
 
     The following env vars must be set:
-        - DEREGISTER_USER
-        - DEREGISTER_PW
+        - BEAGLE_USER
+        - BEAGLE_PW
         - BEAGLE_ENDPOINT
 
 DEREGISTER_USER and DEREGISTER_PW are Beagle credentials allowed to delete.

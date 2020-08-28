@@ -16,8 +16,10 @@ Beagle API Command Line Utility
 
 You can export `BEAGLE_USER` and `BEAGLE_PW` environment variables to override interactive login.
 
+To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
 
-Usage:
+
+##### Usage
 ```
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
