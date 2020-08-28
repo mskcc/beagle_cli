@@ -14,6 +14,7 @@ $ beaglecli files list --metadata=requestId:09324_C
 
 """
 import os
+import sys
 import requests
 import json
 import getpass
@@ -196,10 +197,13 @@ def authenticate_command(config):
             if not password:
                 print("Password needs to be specified")
                 continue
+            if password and username:
+                break
     try:
         tokens = _authenticate(username, password)
     except Exception as e:
         print("Invalid username or password")
+        sys.exit(1)
     else:
         config.set('token', tokens['access'])
         config.set('refresh', tokens['refresh'])
