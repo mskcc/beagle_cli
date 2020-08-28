@@ -4,8 +4,8 @@ import json
 
 class AccessBeagleEndpoint:
   def __init__(self):
-    username = os.environ['DEREGISTER_USER']
-    password = os.environ['DEREGISTER_PW']
+    username = os.environ['BEAGLE_USER']
+    password = os.environ['BEAGLE_PW']
     BEAGLE_ENDPOINT = os.environ['BEAGLE_ENDPOINT']
     self.auth = requests.auth.HTTPBasicAuth(username, password)
     self.API = BEAGLE_ENDPOINT

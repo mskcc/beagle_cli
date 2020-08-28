@@ -6,13 +6,20 @@ Beagle API Command Line Utility
   - `python 3`
 
 - Instructions
-  - `pip install -r requirements-cli.txt`
+  - `pip install -r requirements.txt`
 
 - Run
   - `./beaglecli`
 
 
-Usage:
+##### Optional
+
+You can export `BEAGLE_USER` and `BEAGLE_PW` environment variables to override interactive login.
+
+To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
+
+
+##### Usage
 ```
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
@@ -45,3 +52,9 @@ Usage:
   ```
   beaglecli run submit-request --pipeline=argos --request-ids=ABCDE_1,ABCDE_2 --job-group-id=FGHIJK-LMNOP-QRSTUV-WXY --job-group-id=FGHIJK-LMNOP-QRSTUV-WXYZ
   ```
+
+#### Troubleshooting
+
+If you're having issues, try deleting ~/.beagle.conf file and logging back in.
+
+For any other issues, please contact CMO Informatics (bolipatc@mskcc.org).
