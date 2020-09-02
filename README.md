@@ -36,6 +36,8 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> --request-ids=<request_ids> [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli update-requests <request_id>...
+  beaglecli tempo-mpgen
+  beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
   beaglecli --version
 ```
  Examples:
