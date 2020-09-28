@@ -433,7 +433,7 @@ def _create_storage(arguments, config):
 
 
 def _update_file(arguments, config):
-    path = arguments.get('<file_path>')
+    path = arguments.get('--file-path')
     metadata_path = arguments.get('--metadata-path')
     size = arguments.get('--size')
     metadata = {}
@@ -441,12 +441,12 @@ def _update_file(arguments, config):
         with open(metadata_path) as f:
             metadata = json.load(f)
             print(metadata)
-    file_type = arguments.get('<file_type>')
-    file_group_id = arguments.get('<file_group_id>')
+    file_type = arguments.get('--file-type')
+    file_group = arguments.get('--file-group')
     body = {
         "path": path,
         "metadata": json.dumps(metadata),
-        "file_group_id": file_group_id,
+        "file_group": file_group,
         "file_type": file_type,
     }
     if size:
