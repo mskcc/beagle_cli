@@ -66,7 +66,7 @@ Usage:
   beaglecli file-group create <file_group_name> <storage>
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
-  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]...
+  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli update-requests <request_id>...
@@ -273,9 +273,19 @@ def _get_single_run_command(arguments, config):
 def _get_runs_command(arguments, config):
     page_size = arguments.get('--page-size')
     requestId = arguments.get('--request-id')
+    tags = arguments.get('--tags')
+    job_groups = arguments.get('--job-groups')
+    jira_ids = arguments.get('--jira-ids')
+
     params = dict()
     if requestId:
         params['requestId'] = requestId
+    if tags:
+        params['tags'] = tags
+    if job_groups:
+        params['job_groups'] = job_groups
+    if jira_ids:
+        params['jira_id'] = jira_ids
     if page_size:
         params['page_size'] = page_size
     url = urljoin(BEAGLE_ENDPOINT, API['run'])
