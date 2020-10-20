@@ -57,6 +57,7 @@ Beagle API Command Line Interface
 Usage:
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
+  beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
   beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
   beaglecli files delete --file-id=<file_id>...
   beaglecli storage create <storage_name>
@@ -126,6 +127,8 @@ def files_commands(arguments, config):
         return _create_file(arguments, config)
     if arguments.get('update'):
         return _update_file(arguments, config)
+    if arguments.get('patch'):
+        return _patch_file(arguments, config)
 
 
 def storage_commands(arguments, config):
@@ -443,6 +446,7 @@ def _create_storage(arguments, config):
 
 
 def _update_file(arguments, config):
+    file_id = arguments.get('<file_id>')
     path = arguments.get('<file_path>')
     metadata_path = arguments.get('--metadata-path')
     size = arguments.get('--size')
@@ -461,10 +465,39 @@ def _update_file(arguments, config):
     }
     if size:
         body["size"] = size
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['files']), data=body,
-                             headers={'Authorization': 'Bearer %s' % config.token})
+    response = requests.put(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
+                            headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
+
+def _patch_file(arguments, config):
+    file_id = arguments.get('<file_id>')
+    body = dict()
+    path = arguments.get('<file_path>')
+    if path:
+        body['path'] = path
+    size = arguments.get('--size')
+    if size:
+        body['size'] = size
+    file_type = arguments.get('<file_type>')
+    if file_type:
+        body["file_type"] = file_type
+    file_group_id = arguments.get('<file_group_id>')
+    if file_group_id:
+        body["file_group_id"] = file_group_id
+    metadata_args = arguments.get('--metadata')
+    if metadata_args:
+        metadata = {}
+        for item in metadata_args:
+            k, v = item.split(':')
+            metadata[k] = v
+        body['metadata'] = json.dumps(metadata)
+    response = requests.patch(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
+                              headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
 
 def _update_requests_command(arguments, config):
     request_ids = arguments.get('<request_id>')
