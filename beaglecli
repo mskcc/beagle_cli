@@ -47,7 +47,7 @@ API = {
     'run': '/v0/run/api/',
     'run-operator-request': '/v0/run/operator/request/',
     'etl': '/v0/etl/jobs/',
-    'update-requests': '/v0/etl/update-requests/',
+    'import-requests': '/v0/etl/import-requests/',
     'tempo-mpgen': '/v0/run/operator/tempo_mpgen/'
 }
 
@@ -70,7 +70,7 @@ Usage:
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
-  beaglecli update-requests <request_id>...
+  beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
   beaglecli --version
@@ -166,8 +166,8 @@ def etl_job_commands(arguments, config):
         return _delete_etl_job_command(arguments, config)
 
 
-def update_commands(argumens, config):
-    return _update_requests_command(arguments, config)
+def import_commands(argumens, config):
+    return _import_requests_command(arguments, config)
 
 
 def tempo_mpgen_commands(arguments, config):
@@ -192,8 +192,8 @@ def command(arguments, config):
         return run_commands(arguments, config)
     if arguments.get('etl'):
         return etl_job_commands(arguments, config)
-    if arguments.get('update-requests'):
-        return(update_commands(arguments, config))
+    if arguments.get('import-requests'):
+        return(import_commands(arguments, config))
     if arguments.get('tempo-mpgen'):
         return(tempo_mpgen_commands(arguments, config))
 
@@ -447,7 +447,7 @@ def _create_storage(arguments, config):
 
 def _update_file(arguments, config):
     file_id = arguments.get('<file_id>')
-    path = arguments.get('<file_path>')
+    path = arguments.get('--file-path')
     metadata_path = arguments.get('--metadata-path')
     size = arguments.get('--size')
     metadata = {}
@@ -455,12 +455,12 @@ def _update_file(arguments, config):
         with open(metadata_path) as f:
             metadata = json.load(f)
             print(metadata)
-    file_type = arguments.get('<file_type>')
-    file_group_id = arguments.get('<file_group_id>')
+    file_type = arguments.get('--file-type')
+    file_group = arguments.get('--file-group')
     body = {
         "path": path,
         "metadata": json.dumps(metadata),
-        "file_group_id": file_group_id,
+        "file_group": file_group,
         "file_type": file_type,
     }
     if size:
@@ -474,37 +474,41 @@ def _update_file(arguments, config):
 def _patch_file(arguments, config):
     file_id = arguments.get('<file_id>')
     body = dict()
-    path = arguments.get('<file_path>')
+    path = arguments.get('--file-path')
     if path:
         body['path'] = path
     size = arguments.get('--size')
     if size:
         body['size'] = size
-    file_type = arguments.get('<file_type>')
+    file_type = arguments.get('--file-type')
     if file_type:
         body["file_type"] = file_type
-    file_group_id = arguments.get('<file_group_id>')
+    file_group_id = arguments.get('--file-group')
     if file_group_id:
-        body["file_group_id"] = file_group_id
+        body["file_group"] = file_group_id
     metadata_args = arguments.get('--metadata')
+    metadata = {}
     if metadata_args:
-        metadata = {}
         for item in metadata_args:
             k, v = item.split(':')
             metadata[k] = v
-        body['metadata'] = json.dumps(metadata)
+    body['metadata'] = json.dumps(metadata)
     response = requests.patch(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
                               headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
 
-def _update_requests_command(arguments, config):
-    request_ids = arguments.get('<request_id>')
+def _import_requests_command(arguments, config):
+    request_ids = arguments.get('--request-ids')
+    if request_ids:
+        request_ids = request_ids[0]
+    redelivery = arguments.get('--redelivery')
     body = {
-        "request_ids": request_ids
+        "request_ids": request_ids.split(','),
+        "redelivery": redelivery
     }
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['update-requests']), data=json.dumps(body),
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['import-requests']), data=json.dumps(body),
                              headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
     if response.ok:
         response_json = json.dumps(response.json(), indent=4)
@@ -528,7 +532,7 @@ def _run_tempo_mpgen_override_command(arguments, config):
         response_json = {'details': 'Number of tumors and normals not equal for pair override'}
         return response_json
     else:
-        print("Submitting %i pair overrides." % len(normal_override))
+        print("Submitting %i pair overrides." % len(normals_override))
 
     body = {
         "normals_override": normals_override,
