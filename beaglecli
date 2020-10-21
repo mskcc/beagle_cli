@@ -447,7 +447,7 @@ def _create_storage(arguments, config):
 
 def _update_file(arguments, config):
     file_id = arguments.get('<file_id>')
-    path = arguments.get('<file_path>')
+    path = arguments.get('--file-path')
     metadata_path = arguments.get('--metadata-path')
     size = arguments.get('--size')
     metadata = {}
@@ -455,12 +455,12 @@ def _update_file(arguments, config):
         with open(metadata_path) as f:
             metadata = json.load(f)
             print(metadata)
-    file_type = arguments.get('<file_type>')
-    file_group_id = arguments.get('<file_group_id>')
+    file_type = arguments.get('--file-type')
+    file_group_id = arguments.get('--file-group')
     body = {
         "path": path,
         "metadata": json.dumps(metadata),
-        "file_group_id": file_group_id,
+        "file_group": file_group_id,
         "file_type": file_type,
     }
     if size:
@@ -474,25 +474,25 @@ def _update_file(arguments, config):
 def _patch_file(arguments, config):
     file_id = arguments.get('<file_id>')
     body = dict()
-    path = arguments.get('<file_path>')
+    path = arguments.get('--file-path')
     if path:
         body['path'] = path
     size = arguments.get('--size')
     if size:
         body['size'] = size
-    file_type = arguments.get('<file_type>')
+    file_type = arguments.get('--file-type')
     if file_type:
         body["file_type"] = file_type
-    file_group_id = arguments.get('<file_group_id>')
+    file_group_id = arguments.get('--file-group')
     if file_group_id:
-        body["file_group_id"] = file_group_id
+        body["file_group"] = file_group_id
     metadata_args = arguments.get('--metadata')
+    metadata = {}
     if metadata_args:
-        metadata = {}
         for item in metadata_args:
             k, v = item.split(':')
             metadata[k] = v
-        body['metadata'] = json.dumps(metadata)
+    body['metadata'] = json.dumps(metadata)
     response = requests.patch(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
                               headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
