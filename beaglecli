@@ -48,7 +48,8 @@ API = {
     'run-operator-request': '/v0/run/operator/request/',
     'etl': '/v0/etl/jobs/',
     'import-requests': '/v0/etl/import-requests/',
-    'tempo-mpgen': '/v0/run/operator/tempo_mpgen/'
+    'tempo-mpgen': '/v0/run/operator/tempo_mpgen/',
+    'sample': '/v0/fs/sample/'
 }
 
 USAGE = """
@@ -60,6 +61,9 @@ Usage:
   beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
   beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
   beaglecli files delete --file-id=<file_id>...
+  beaglecli sample create <sample-id>
+  beaglecli sample list [--sample-id=<sample-id>]
+  beaglecli sample redact <sample-id> [--value=<redact>]
   beaglecli storage create <storage_name>
   beaglecli storage list
   beaglecli file-types create <file_type>
@@ -166,7 +170,7 @@ def etl_job_commands(arguments, config):
         return _delete_etl_job_command(arguments, config)
 
 
-def import_commands(argumens, config):
+def import_commands(arguments, config):
     return _import_requests_command(arguments, config)
 
 
@@ -177,6 +181,16 @@ def tempo_mpgen_commands(arguments, config):
         return _run_tempo_mpgen_override_command(arguments, config)
     else:         
         return _run_tempo_mpgen_command(arguments, config)
+
+
+def sample_commands(arguments, config):
+    if arguments.get('list'):
+        return _list_sample(arguments, config)
+    if arguments.get('create'):
+        return _create_sample(arguments, config)
+    if arguments.get('redact'):
+        return _redact_sample(arguments, config)
+
 
 
 def command(arguments, config):
@@ -193,9 +207,11 @@ def command(arguments, config):
     if arguments.get('etl'):
         return etl_job_commands(arguments, config)
     if arguments.get('import-requests'):
-        return(import_commands(arguments, config))
+        return import_commands(arguments, config)
     if arguments.get('tempo-mpgen'):
-        return(tempo_mpgen_commands(arguments, config))
+        return tempo_mpgen_commands(arguments, config)
+    if arguments.get('sample'):
+        return sample_commands(arguments, config)
 
 
 # Authentication
@@ -357,6 +373,16 @@ def _list_files(arguments, config):
     return response_json
 
 
+def _list_sample(arguments, config):
+    sample_id = arguments.get('--sample-id')
+    params = dict(sample_id=sample_id)
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['sample']),
+                            headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response_json = json.dumps(response.json(), indent=4)
+    _set_next_and_prev(config, response.json())
+    return response_json
+
+
 def _set_next_and_prev(config, value):
     config.set('prev', value.get('previous'))
     config.set('next', value.get('next'))
@@ -437,6 +463,17 @@ def _create_storage(arguments, config):
         "type": 0,
     }
     response = requests.post(urljoin(BEAGLE_ENDPOINT, API['storage']), data=body,
+                             headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
+
+def _create_sample(arguments, config):
+    sample_id = arguments.get('<sample-id>')
+    body = {
+        "sample_id": sample_id
+    }
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['sample']), data=body,
                              headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
@@ -607,6 +644,29 @@ def _submit_operator_request_run(arguments, config):
     url = urljoin(BEAGLE_ENDPOINT, API['run-operator-request'])
     response = requests.post(url, data=json.dumps(body),
             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
+
+def _redact_sample(arguments, config):
+    sample_id = arguments.get('<sample-id>')
+    redact = arguments.get('--value')
+    if redact == 'False':
+        redact = False
+    else:
+        redact = True
+    url = urljoin(BEAGLE_ENDPOINT, API['sample'])
+    params = dict(sample_id=sample_id)
+    response = requests.get(url,
+                            headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    samples = response.json().get('results')
+    if len(samples) != 1:
+        return "Error finding sample. Found %s samples." % samples
+    db_id = samples[0]['id']
+    url = urljoin(BEAGLE_ENDPOINT, API['sample']) + '%s/' % db_id
+    response = requests.patch(url,
+                              dict(redact=redact),
+                              headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
