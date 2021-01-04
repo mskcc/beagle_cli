@@ -44,15 +44,14 @@ def run_access_folder_link_command(arguments, config):
         request_id = request_id[0]
 
     try:
-        path = Path("./{}/bam_qc".format(request_id))
-    except FileExistsError:
-        pass
-
-    try:
         pipeline = get_pipeline("access legacy", config)[0]
     except Exception as e:
         print("Pipeline 'access legacy' does not exist")
         quit()
+
+    path = Path("./")
+    path = path / request_id / "bam_qc" / pipeline["version"]
+    path.mkdir(parents=True, exist_ok=True)
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
     apps = [pipeline["id"]]
@@ -80,9 +79,14 @@ def run_access_folder_link_command(arguments, config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
 
 
-    print(files)
     for (sample_id, file) in files:
-        os.symlink(file, "./{}/bam_qc/{}/{}".format(request_id, sample_id, os.path.basename(file)))
+        sample_path = path / sample_id if sample_id else path
+        sample_path.mkdir(parents=True, exist_ok=True)
+
+        try:
+            os.symlink(file, sample_path / os.path.basename(file))
+        except Exception as e:
+            pass
 
     #response_json = json.dumps(files, indent=4)
     #return response_json
