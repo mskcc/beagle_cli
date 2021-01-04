@@ -29,7 +29,6 @@ def get_group_id(tags, apps, config):
                             headers={'Authorization': 'Bearer %s' % config['token']}, params=latest_run_params)
 
     latest_runs = response.json()["results"]
-    print(response.url)
     if not latest_runs:
         print("There are no runs for this id")
         quit()
@@ -87,9 +86,6 @@ def run_access_folder_link_command(arguments, config):
             os.symlink(file, sample_path / os.path.basename(file))
         except Exception as e:
             pass
-
-    #response_json = json.dumps(files, indent=4)
-    #return response_json
 
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
