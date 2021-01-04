@@ -22,8 +22,10 @@ from docopt import docopt
 from os.path import expanduser
 from urllib.parse import urljoin
 
+from apps.access import access_commands
 
-BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://silo:5001')
+
+BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://silo:4001')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
 BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
 
@@ -32,7 +34,7 @@ CONFIG_TEMPLATE = {
     'token': '',
     'refresh': '',
     'next': None,
-    'prev': None
+    'prev': None,
 }
 
 
@@ -42,6 +44,7 @@ API = {
     "refresh": "api-token-refresh/",
     "storage": "v0/fs/storage/",
     "file-types": 'v0/fs/file-types/',
+    "pipelines": 'v0/run/pipelines/',
     "files": '/v0/fs/files/',
     "file-groups": 'v0/fs/file-groups/',
     'run': '/v0/run/api/',
@@ -73,6 +76,7 @@ Usage:
   beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
+  beaglecli access link --request-id=<request_id>
   beaglecli --version
 
 Options:
@@ -196,6 +200,12 @@ def command(arguments, config):
         return(import_commands(arguments, config))
     if arguments.get('tempo-mpgen'):
         return(tempo_mpgen_commands(arguments, config))
+    if arguments.get('access'):
+        return(access_commands(arguments, {
+            'token': config.token,
+            'beagle_endpoint': BEAGLE_ENDPOINT,
+            'api': API
+        }))
 
 
 # Authentication
@@ -565,6 +575,28 @@ def _run_tempo_mpgen_command(arguments, config):
         print(response)
         print(response.reason)
         print(response.request.body)
+
+"""
+def _list_files(arguments, config):
+    paths = arguments.get('--path')
+    metadata = arguments.get('--metadata')
+    file_group = arguments.get('--file-group')
+    file_name = arguments.get('--file-name')
+    filename_regex = arguments.get('--filename-regex')
+    page_size = arguments.get('--page-size')
+    params = dict()
+    params['path'] = paths
+    params['metadata'] = metadata
+    params['file_group'] = file_group
+    params['file_name'] = file_name
+    params['filename_regex'] = filename_regex
+    if page_size:
+        params['page_size'] = page_size
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response_json = json.dumps(response.json(), indent=4)
+    _set_next_and_prev(config, response.json())
+    return response_json
+"""
 
 # Delete
 
