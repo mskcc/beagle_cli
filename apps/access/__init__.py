@@ -29,6 +29,7 @@ def get_group_id(tags, apps, config):
                             headers={'Authorization': 'Bearer %s' % config['token']}, params=latest_run_params)
 
     latest_runs = response.json()["results"]
+    print(response.url)
     if not latest_runs:
         print("There are no runs for this id")
         quit()
@@ -39,7 +40,8 @@ def get_group_id(tags, apps, config):
 def run_access_folder_link_command(arguments, config):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
-    request_id = request_id[0]
+    if request_id:
+        request_id = request_id[0]
 
     try:
         path = Path("./{}/bam_qc".format(request_id))
@@ -70,41 +72,47 @@ def run_access_folder_link_command(arguments, config):
 
     runs = response.json()["results"]
 
-    # sample_id -> /path/to/file
-    files = []
+    files = [] # (sample_id, /path/to/file)
     for run in runs:
         response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run["id"]),
                                 headers={'Authorization': 'Bearer %s' % config['token']})
         for file_group in response.json()["outputs"]:
-            files = files + find_files_by_sample(file_group["value"])
+            files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
 
 
+    print(files)
     for (sample_id, file) in files:
         os.symlink(file, "./{}/bam_qc/{}/{}".format(request_id, sample_id, os.path.basename(file)))
 
     #response_json = json.dumps(files, indent=4)
     #return response_json
 
-def find_files_by_sample(file_group):
+def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
         files = []
         if type(file_group) == list:
             if len(file_group) > 1:
                 return traverse(file_group[0]) + traverse(file_group[1:])
-            else:
+            elif file_group:
                 return traverse(file_group[0])
         elif "file" in file_group:
             try:
-                sample_id = file_group["sampleId"]
+                file_sample_id = file_group["sampleId"]
                 if "File" == file_group["file"]["class"] and (not sample_id or
-                                                              file_group["sampleId"] ==
+                                                              file_sample_id ==
                                                               sample_id):
-                    return [(sample_id, file_group["file"]["location"][7:])] + [(sample_id,
+                    return [(file_sample_id, file_group["file"]["location"][7:])] + [(file_sample_id,
                                                                                  f["location"][7:]) for f in file_group["file"]["secondaryFiles"]]
             except Exception as e:
                 print("ERROR:")
                 print(e)
                 print(file_group)
+        elif "class" in file_group:
+            if file_group["class"] == "Directory":
+                return find_files_by_sample(file_group["listing"], sample_id=file_group["basename"])
+            elif file_group["class"] == "File":
+                return [(sample_id, file_group["location"][7:])]
+
         return []
 
     return traverse(file_group)
