@@ -82,8 +82,6 @@ def run_access_folder_bam_link_command(arguments, config):
     pipeline = get_pipeline("access legacy", config)
 
     path = Path("./")
-    path = path / request_id / "bam_qc" / pipeline["version"]
-    path.mkdir(parents=True, exist_ok=True)
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
     apps = [pipeline["id"]]
@@ -108,8 +106,10 @@ def run_access_folder_bam_link_command(arguments, config):
         if file_ext not in accepted_file_types:
             continue
 
-        sample_path = path / patient_id / sample_id
+        patient_id, _ = patient_id.split("_")
+        sample_path = path / patient_id / sample_id / pipeline["version"]
         sample_path.mkdir(parents=True, exist_ok=True)
+        print("Creating symlink", sample_path)
 
         try:
             os.symlink(file_path, sample_path / os.path.basename(file_path))
@@ -135,7 +135,6 @@ def run_access_folder_link_command(arguments, config):
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
 
-    print(files)
     for (sample_id, patient_id, file) in files:
         sample_path = path / sample_id if sample_id else path
         sample_path.mkdir(parents=True, exist_ok=True)
