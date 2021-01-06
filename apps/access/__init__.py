@@ -108,11 +108,13 @@ def run_access_folder_bam_link_command(arguments, config):
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
-        sample_path = path / patient_id / sample_id / version
-        sample_path.mkdir(parents=True, exist_ok=True)
+        sample_path = path / patient_id / sample_id
+        sample_version_path = sample_path / version
+        sample_version_path.mkdir(parents=True, exist_ok=True)
 
         try:
-            os.symlink(file_path, sample_path / file_name)
+            os.symlink(file_path, sample_version_path / file_name)
+            os.symlink(sample_version_path.absolute(), sample_path / "current")
         except Exception as e:
             pass
     return "Completed"
@@ -124,7 +126,8 @@ def run_access_folder_link_command(arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
-    path = path / request_id / "bam_qc" / version
+    path_without_version = path / request_id / "bam_qc"
+    path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True)
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
@@ -148,7 +151,8 @@ def run_access_folder_link_command(arguments, config):
         sample_path.mkdir(parents=True, exist_ok=True)
 
         try:
-            os.symlink(file_path, sample_path / os.path.basename(file_path))
+            os.symlink(file_path, sample_path / file_name)
+            os.symlink(path.absolute(), path_without_version / "current")
         except Exception as e:
             pass
 
