@@ -80,6 +80,7 @@ def run_access_folder_bam_link_command(arguments, config):
     request_id, sample_id = get_arguments(arguments)
 
     pipeline = get_pipeline("access legacy", config)
+    version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
 
@@ -93,36 +94,37 @@ def run_access_folder_bam_link_command(arguments, config):
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
 
-
     accepted_file_types = ['.bam', '.bai']
-    for (sample_id, patient_id, file) in files:
-
-        if not patient_id or not sample_id:
-            continue
-
+    for (sample_id, file) in files:
         file_path = get_file_path(file)
         _, file_ext = os.path.splitext(file_path)
 
         if file_ext not in accepted_file_types:
             continue
 
-        patient_id, _ = patient_id.split("_")
-        sample_path = path / patient_id / sample_id / pipeline["version"]
+        file_name = os.path.basename(file_path)
+
+        sample_id, _ = file_name.split("_", 1)
+        a, b, _ = sample_id.split("-", 2)
+        patient_id = "-".join([a, b])
+
+        sample_path = path / patient_id / sample_id / version
         sample_path.mkdir(parents=True, exist_ok=True)
-        print("Creating symlink", sample_path)
 
         try:
-            os.symlink(file_path, sample_path / os.path.basename(file_path))
+            os.symlink(file_path, sample_path / file_name)
         except Exception as e:
             pass
+    return "Completed"
 
 def run_access_folder_link_command(arguments, config):
     request_id, sample_id = get_arguments(arguments)
 
     pipeline = get_pipeline("access legacy", config)
+    version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
-    path = path / request_id / "bam_qc" / pipeline["version"]
+    path = path / request_id / "bam_qc" / version
     path.mkdir(parents=True, exist_ok=True)
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
@@ -132,18 +134,25 @@ def run_access_folder_link_command(arguments, config):
 
     files = [] # (sample_id, /path/to/file)
     for run in runs:
+        print(run["id"])
         for file_group in get_files_by_run_id(run["id"], config):
-            files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
+            files = files + [(run["id"], f) for f in find_files_by_sample(file_group["value"],
+                                                             sample_id=sample_id)]
 
-    for (sample_id, patient_id, file) in files:
-        sample_path = path / sample_id if sample_id else path
+    for (run_id, (sample_id, file)) in files:
+        file_path = get_file_path(file)
+
+        file_name = os.path.basename(file_path)
+
+        sample_path = path / run_id / sample_id if sample_id else path / run_id
         sample_path.mkdir(parents=True, exist_ok=True)
 
-        file_path = get_file_path(file)
         try:
             os.symlink(file_path, sample_path / os.path.basename(file_path))
         except Exception as e:
             pass
+
+    return "Completed"
 
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
@@ -156,13 +165,11 @@ def find_files_by_sample(file_group, sample_id = None):
         elif "file" in file_group:
             try:
                 file_sample_id = file_group["sampleId"]
-                patient_id = file_group["patientId"]
                 if "File" == file_group["file"]["class"] and (not sample_id or
                                                               file_sample_id ==
                                                               sample_id):
-                    return [(file_sample_id, patient_id, file_group["file"])] + [(file_sample_id,
-                                                                                  patient_id,
-                                                                                 f) for f in file_group["file"]["secondaryFiles"]]
+                    return [(file_sample_id, file_group["file"])] + [(file_sample_id,
+                                                                      f) for f in file_group["file"]["secondaryFiles"]]
             except Exception as e:
                 print("ERROR:")
                 print(e)
@@ -172,7 +179,7 @@ def find_files_by_sample(file_group, sample_id = None):
                 return find_files_by_sample(file_group["listing"], sample_id=file_group["basename"])
             # TODO pull patient id here
             elif file_group["class"] == "File":
-                return [(sample_id, None, file_group)]
+                return [(sample_id, file_group)]
 
         return []
 
