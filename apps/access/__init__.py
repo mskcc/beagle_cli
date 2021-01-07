@@ -67,6 +67,13 @@ def get_runs(tags, apps, config):
 
     return response.json()["results"]
 
+def get_run_by_id(run_id, config):
+    response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run_id),
+                            headers={'Authorization': 'Bearer %s' % config['token']})
+
+    return response.json()
+
+
 def get_files_by_run_id(run_id, config):
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run_id),
                             headers={'Authorization': 'Bearer %s' % config['token']})
@@ -110,13 +117,19 @@ def run_access_folder_bam_link_command(arguments, config):
 
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
-        sample_version_path.mkdir(parents=True, exist_ok=True)
+        sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
         try:
             os.symlink(file_path, sample_version_path / file_name)
+        except Exception as e:
+            print("could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path))
+            continue
+
+        try:
             os.symlink(sample_version_path.absolute(), sample_path / "current")
         except Exception as e:
             pass
+
     return "Completed"
 
 def run_access_folder_link_command(arguments, config):
@@ -126,9 +139,9 @@ def run_access_folder_link_command(arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
-    path_without_version = path / request_id / "bam_qc"
+    path_without_version = path / ("Project_" + request_id) / "bam_qc"
     path = path_without_version / version
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
     apps = [pipeline["id"]]
@@ -136,26 +149,14 @@ def run_access_folder_link_command(arguments, config):
     runs = get_runs(tags, apps, config)
 
     files = [] # (sample_id, /path/to/file)
-    for run in runs:
-        print(run["id"])
-        for file_group in get_files_by_run_id(run["id"], config):
-            files = files + [(run["id"], f) for f in find_files_by_sample(file_group["value"],
-                                                             sample_id=sample_id)]
-
-    for (run_id, (sample_id, file)) in files:
-        file_path = get_file_path(file)
-
-        file_name = os.path.basename(file_path)
-
-        sample_path = path / run_id / sample_id if sample_id else path / run_id
-        sample_path.mkdir(parents=True, exist_ok=True)
-
+    for run_meta in runs:
+        run = get_run_by_id(run_meta["id"], config)
         try:
-            os.symlink(file_path, sample_path / file_name)
-            os.symlink(path.absolute(), path_without_version / "current")
+            os.symlink(run["output_directory"], path / run["id"])
         except Exception as e:
-            pass
+            print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]))
 
+    os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
 
 def find_files_by_sample(file_group, sample_id = None):
