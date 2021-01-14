@@ -22,6 +22,8 @@ from docopt import docopt
 from os.path import expanduser
 from urllib.parse import urljoin
 
+from apps.access import access_commands
+
 
 BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://voyager:5001')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
@@ -32,7 +34,7 @@ CONFIG_TEMPLATE = {
     'token': '',
     'refresh': '',
     'next': None,
-    'prev': None
+    'prev': None,
 }
 
 
@@ -42,6 +44,7 @@ API = {
     "refresh": "api-token-refresh/",
     "storage": "v0/fs/storage/",
     "file-types": 'v0/fs/file-types/',
+    "pipelines": 'v0/run/pipelines/',
     "files": '/v0/fs/files/',
     "file-groups": 'v0/fs/file-groups/',
     'run': '/v0/run/api/',
@@ -77,6 +80,8 @@ Usage:
   beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
+  beaglecli access link [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>]
+  beaglecli access link-bams [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>]
   beaglecli --version
 
 Options:
@@ -209,9 +214,14 @@ def command(arguments, config):
     if arguments.get('import-requests'):
         return import_commands(arguments, config)
     if arguments.get('tempo-mpgen'):
-        return tempo_mpgen_commands(arguments, config)
-    if arguments.get('sample'):
-        return sample_commands(arguments, config)
+        return (tempo_mpgen_commands(arguments, config))
+    if arguments.get('access'):
+        return (access_commands(arguments, {
+            'token': config.token,
+            'beagle_endpoint': BEAGLE_ENDPOINT,
+            'api': API
+        }))
+
 
 
 # Authentication
