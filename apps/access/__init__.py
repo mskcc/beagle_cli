@@ -183,7 +183,6 @@ def find_files_by_sample(file_group, sample_id = None):
                 if "File" == file_group["file"]["class"] and (not sample_id or
                                                               file_sample_id ==
                                                               sample_id):
-                    if file_group["file"]["basename"] == "C-0EU9LX-L015-d_cl_aln_srt_MD_IR_FX_BR__aln_srt_IR_FX.bam":
                     return [(file_sample_id, file_group["file"])] + [(file_sample_id,
                                                                       f) for f in file_group["file"]["secondaryFiles"]]
             except Exception as e:
