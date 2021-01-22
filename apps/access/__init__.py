@@ -1,8 +1,9 @@
-import requests
 import os
+import sys
 from collections import defaultdict
 from urllib.parse import urljoin
 from pathlib import Path
+import requests
 
 def access_commands(arguments, config):
     print('Running ACCESS')
@@ -21,7 +22,7 @@ def get_pipeline(name, config):
     try:
         pipeline = response.json()["results"][0]
     except Exception as e:
-        print("Pipeline 'access legacy' does not exist")
+        print("Pipeline 'access legacy' does not exist", file=sys.stderr)
         quit()
     return pipeline
 
@@ -38,7 +39,7 @@ def get_group_id(tags, apps, config):
 
     latest_runs = response.json()["results"]
     if not latest_runs:
-        print("There are no runs for this id")
+        print("There are no runs for this id", file=sys.stderr)
         quit()
 
     return latest_runs[0]["job_group"]
@@ -86,11 +87,18 @@ def get_file_path(file):
 def run_access_folder_link_command(arguments, config):
     request_id, sample_id = get_arguments(arguments)
 
-    pipeline = get_pipeline("access legacy", config)
+    link_app("access legacy", "bam_qc", request_id, sample_id)
+    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id)
+    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id)
+    link_app("access legacy SV", "small_variants", request_id, sample_id)
+    link_app("access legacy SNV", "structural_variants", request_id, sample_id)
+
+def link_app(app, directory, request_id, sample_id):
+    pipeline = get_pipeline(app, config)
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
-    path_without_version = path / ("Project_" + request_id) / "bam_qc"
+    path_without_version = path / ("Project_" + request_id) / directory
     path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
@@ -104,8 +112,9 @@ def run_access_folder_link_command(arguments, config):
         run = get_run_by_id(run_meta["id"], config)
         try:
             os.symlink(run["output_directory"], path / run["id"])
+            print((path / run["id"]).absolute(), file=sys.stdout)
         except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]))
+            print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
 
     os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
@@ -145,11 +154,12 @@ def run_access_folder_bam_link_command(arguments, config):
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+        print(sample_path.absolute(), file=sys.stdout)
 
         try:
             os.symlink(file_path, sample_version_path / file_name)
         except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path))
+            print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
             continue
 
         try:
@@ -173,16 +183,11 @@ def find_files_by_sample(file_group, sample_id = None):
                 if "File" == file_group["file"]["class"] and (not sample_id or
                                                               file_sample_id ==
                                                               sample_id):
-                    print(file_group["file"]["basename"])
                     if file_group["file"]["basename"] == "C-0EU9LX-L015-d_cl_aln_srt_MD_IR_FX_BR__aln_srt_IR_FX.bam":
-                        print("Here's our file")
-                        print(file_group["file"]["secondaryFiles"])
                     return [(file_sample_id, file_group["file"])] + [(file_sample_id,
                                                                       f) for f in file_group["file"]["secondaryFiles"]]
             except Exception as e:
-                print("ERROR:")
-                print(e)
-                print(file_group)
+                print(e, file=sys.stderr)
         elif "class" in file_group:
             if file_group["class"] == "Directory":
                 return find_files_by_sample(file_group["listing"], sample_id=file_group["basename"])
