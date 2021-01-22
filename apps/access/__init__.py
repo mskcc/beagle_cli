@@ -5,14 +5,24 @@ from urllib.parse import urljoin
 from pathlib import Path
 import requests
 
+FLAG_TO_APPS = {
+    "msi": ("access legacy MSI", "bam_qc"),
+    "cnv": ("access legacy CNV", "microsatellite_instability"),
+    "sv": ("access legacy SV", "small_variants"),
+    "snv": ("access legacy SNV", "structural_variants"),
+    "qc": ("access legacy", "bam_qc"),
+}
+
 def access_commands(arguments, config):
     print('Running ACCESS')
     if arguments.get('link-bams'):
         return run_access_folder_bam_link_command(arguments, config)
 
+    request_id, sample_id, apps = get_arguments(arguments)
     if arguments.get('link'):
-        return run_access_folder_link_command(arguments, config)
-
+        for flag_app in apps:
+            (app, directory) = FLAG_TO_APPS[flag_app]
+            link_app(app, directory, request_id, sample_id, arguments, config)
 
 def get_pipeline(name, config):
     response = requests.get(urljoin(config['beagle_endpoint'],
@@ -47,9 +57,10 @@ def get_group_id(tags, apps, config):
 def get_arguments(arguments):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
+    apps = arguments.get('--apps')
     if request_id:
         request_id = request_id[0]
-    return request_id, sample_id
+    return request_id, sample_id, apps
 
 
 def get_runs(tags, apps, config):
@@ -85,15 +96,6 @@ def get_files_by_run_id(run_id, config):
 
 def get_file_path(file):
     return file["location"][7:]
-
-def run_access_folder_link_command(arguments, config):
-    request_id, sample_id = get_arguments(arguments)
-
-    link_app("access legacy", "bam_qc", request_id, sample_id, arguments, config)
-    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id, arguments, config)
-    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id, arguments, config)
-    link_app("access legacy SV", "small_variants", request_id, sample_id, arguments, config)
-    link_app("access legacy SNV", "structural_variants", request_id, sample_id, arguments, config)
 
 def link_app(app, directory, request_id, sample_id, arguments, config):
     pipeline = get_pipeline(app, config)
