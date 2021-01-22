@@ -87,13 +87,13 @@ def get_file_path(file):
 def run_access_folder_link_command(arguments, config):
     request_id, sample_id = get_arguments(arguments)
 
-    link_app("access legacy", "bam_qc", request_id, sample_id)
-    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id)
-    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id)
-    link_app("access legacy SV", "small_variants", request_id, sample_id)
-    link_app("access legacy SNV", "structural_variants", request_id, sample_id)
+    link_app("access legacy", "bam_qc", request_id, sample_id, config)
+    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id, config)
+    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id, config)
+    link_app("access legacy SV", "small_variants", request_id, sample_id, config)
+    link_app("access legacy SNV", "structural_variants", request_id, sample_id, config)
 
-def link_app(app, directory, request_id, sample_id):
+def link_app(app, directory, request_id, sample_id, config):
     pipeline = get_pipeline(app, config)
     version = arguments.get("--dir-version") or pipeline["version"]
 
