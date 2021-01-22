@@ -39,8 +39,8 @@ def get_group_id(tags, apps, config):
 
     latest_runs = response.json()["results"]
     if not latest_runs:
-        print("There are no runs for this id", file=sys.stderr)
-        quit()
+        print("There are no runs for this request in the following app: %s" % str(apps), file=sys.stderr)
+        return None
 
     return latest_runs[0]["job_group"]
 
@@ -54,6 +54,8 @@ def get_arguments(arguments):
 
 def get_runs(tags, apps, config):
     group_id = get_group_id(tags, apps, config)
+    if not group_id:
+        return None
 
     run_params = {
         "tags": tags,
@@ -87,13 +89,13 @@ def get_file_path(file):
 def run_access_folder_link_command(arguments, config):
     request_id, sample_id = get_arguments(arguments)
 
-    link_app("access legacy", "bam_qc", request_id, sample_id, config)
-    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id, config)
-    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id, config)
-    link_app("access legacy SV", "small_variants", request_id, sample_id, config)
-    link_app("access legacy SNV", "structural_variants", request_id, sample_id, config)
+    link_app("access legacy", "bam_qc", request_id, sample_id, arguments, config)
+    link_app("access legacy MSI", "microsatellite_instability/", request_id, sample_id, arguments, config)
+    link_app("access legacy CNV", "copy_number_variants", request_id, sample_id, arguments, config)
+    link_app("access legacy SV", "small_variants", request_id, sample_id, arguments, config)
+    link_app("access legacy SNV", "structural_variants", request_id, sample_id, arguments, config)
 
-def link_app(app, directory, request_id, sample_id, config):
+def link_app(app, directory, request_id, sample_id, arguments, config):
     pipeline = get_pipeline(app, config)
     version = arguments.get("--dir-version") or pipeline["version"]
 
@@ -106,6 +108,8 @@ def link_app(app, directory, request_id, sample_id, config):
     apps = [pipeline["id"]]
 
     runs = get_runs(tags, apps, config)
+    if not runs:
+        return
 
     files = [] # (sample_id, /path/to/file)
     for run_meta in runs:
@@ -115,6 +119,11 @@ def link_app(app, directory, request_id, sample_id, config):
             print((path / run["id"]).absolute(), file=sys.stdout)
         except Exception as e:
             print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+
+    try:
+        os.unlink(path_without_version / "current")
+    except:
+        pass
 
     os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
