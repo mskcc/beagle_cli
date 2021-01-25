@@ -157,9 +157,9 @@ def link_single_sample_workflows_by_patient_id(app, directory, request_id, sampl
         run = get_run_by_id(run_meta["id"], config)
         sample_id = run["tags"]["cmoSampleIds"][0]
         patient_id = "test_patient_id" #run["tags"]["patientId"]
-        print(sample_id)
 
         sample_path = path / patient_id / sample_id
+        sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
         sample_version_path = sample_path / version
 
         try:
