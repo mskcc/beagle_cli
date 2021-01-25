@@ -6,17 +6,16 @@ from pathlib import Path
 import requests
 
 FLAG_TO_APPS = {
-    "msi": ("access legacy MSI", "bam_qc"),
-    "cnv": ("access legacy CNV", "microsatellite_instability"),
-    "sv": ("access legacy SV", "small_variants"),
-    "snv": ("access legacy SNV", "structural_variants"),
+    "msi": ("access legacy MSI", "microsatellite_instability"),
+    "cnv": ("access legacy CNV", "copy_number_variants"),
+    "sv": ("access legacy SV", "structural_variants"),
+    "snv": ("access legacy SNV", "small_variants"),
     "qc": ("access legacy", "bam_qc"),
+    "bams": ("access legacy", "bams"),
 }
 
 def access_commands(arguments, config):
     print('Running ACCESS')
-    if arguments.get('link-bams'):
-        return run_access_folder_bam_link_command(arguments, config)
 
     request_id, sample_id, apps = get_arguments(arguments)
     if arguments.get('link'):
@@ -24,15 +23,25 @@ def access_commands(arguments, config):
             (app, directory) = FLAG_TO_APPS[flag_app]
             link_app(app, directory, request_id, sample_id, arguments, config)
 
+    if arguments.get('link-patient'):
+        for flag_app in apps:
+            (app, directory) = FLAG_TO_APPS[flag_app]
+            if(flag_app == "bams"):
+                link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, config)
+            else:
+                link_single_sample_workflows_by_patient_id(app, directory, request_id, sample_id, arguments,
+                                                       config)
+
 def get_pipeline(name, config):
     response = requests.get(urljoin(config['beagle_endpoint'],
                                     "{}?name={}".format(config['api']['pipelines'], name)),
+                                    #"{}?name={}&default=1".format(config['api']['pipelines'], name)),
                             headers={'Authorization': 'Bearer %s' % config['token']})
 
     try:
         pipeline = response.json()["results"][0]
     except Exception as e:
-        print("Pipeline 'access legacy' does not exist", file=sys.stderr)
+        print("Pipeline '{}' does not exist" % name, file=sys.stderr)
         quit()
     return pipeline
 
@@ -130,13 +139,47 @@ def link_app(app, directory, request_id, sample_id, arguments, config):
     os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
 
-def run_access_folder_bam_link_command(arguments, config):
-    request_id, sample_id = get_arguments(arguments)
 
-    pipeline = get_pipeline("access legacy", config)
+def link_single_sample_workflows_by_patient_id(app, directory, request_id, sample_id, arguments, config):
+    pipeline = get_pipeline(app, config)
     version = arguments.get("--dir-version") or pipeline["version"]
 
-    path = Path("./")
+    path = Path("./") / directory
+
+    tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
+    apps = [pipeline["id"]]
+
+    runs = get_runs(tags, apps, config)
+    if not runs:
+        return
+
+    for run_meta in runs:
+        run = get_run_by_id(run_meta["id"], config)
+        sample_id = run["tags"]["cmoSampleIds"][0]
+        patient_id = "test_patient_id" #run["tags"]["patientId"]
+        print(sample_id)
+
+        sample_path = path / patient_id / sample_id
+        sample_version_path = sample_path / version
+
+        try:
+            os.symlink(run["output_directory"], sample_version_path)
+            print(sample_version_path.absolute(), file=sys.stdout)
+        except Exception as e:
+            print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+
+        try:
+            os.unlink(sample_path / "current")
+        except:
+            pass
+
+        os.symlink(sample_version_path.absolute(), sample_path / "current")
+
+def link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, config):
+    pipeline = get_pipeline(app, config)
+    version = arguments.get("--dir-version") or pipeline["version"]
+
+    path = Path("./") / directory
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
     apps = [pipeline["id"]]
@@ -144,6 +187,7 @@ def run_access_folder_bam_link_command(arguments, config):
     runs = get_runs(tags, apps, config)
 
     files = [] # (sample_id, /path/to/file)
+
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
@@ -162,16 +206,21 @@ def run_access_folder_bam_link_command(arguments, config):
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
+
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
-        print(sample_path.absolute(), file=sys.stdout)
 
         try:
             os.symlink(file_path, sample_version_path / file_name)
         except Exception as e:
             print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
             continue
+
+        try:
+            os.unlink(sample_path / "current")
+        except Exception as e:
+            pass
 
         try:
             os.symlink(sample_version_path.absolute(), sample_path / "current")
