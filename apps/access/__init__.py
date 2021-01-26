@@ -156,7 +156,8 @@ def link_single_sample_workflows_by_patient_id(app, directory, request_id, sampl
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         sample_id = run["tags"]["cmoSampleIds"][0]
-        patient_id = "test_patient_id" #run["tags"]["patientId"]
+        a, b, _ = sample_id.split("-", 2)
+        patient_id = "-".join([a, b])
 
         sample_path = path / patient_id / sample_id
         sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
