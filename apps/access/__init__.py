@@ -34,8 +34,7 @@ def access_commands(arguments, config):
 
 def get_pipeline(name, config):
     response = requests.get(urljoin(config['beagle_endpoint'],
-                                    "{}?name={}".format(config['api']['pipelines'], name)),
-                                    #"{}?name={}&default=1".format(config['api']['pipelines'], name)),
+                                    "{}?name={}&default=1".format(config['api']['pipelines'], name)),
                             headers={'Authorization': 'Bearer %s' % config['token']})
 
     try:
