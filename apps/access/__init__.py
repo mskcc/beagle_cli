@@ -20,7 +20,7 @@ def access_commands(arguments, config):
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            pipeline = get_pipeline(app, app_version, config)
+            pipeline = get_pipeline(app_name, app_version, config)
             link_app(pipeline, directory, request_id, sample_id, arguments, config)
 
     if arguments.get('link-patient'):
