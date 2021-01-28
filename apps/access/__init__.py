@@ -10,8 +10,7 @@ FLAG_TO_APPS = {
     "cnv": ("access legacy CNV", "copy_number_variants"),
     "sv": ("access legacy SV", "structural_variants"),
     "snv": ("access legacy SNV", "small_variants"),
-    "qc": ("access legacy", "bam_qc"),
-    "bams": ("access legacy", "bams"),
+    "bams": ("access legacy", "bam_qc"),
 }
 
 def access_commands(arguments, config):
@@ -19,23 +18,29 @@ def access_commands(arguments, config):
 
     request_id, sample_id, apps = get_arguments(arguments)
     if arguments.get('link'):
-        for flag_app in apps:
-            (app, directory) = FLAG_TO_APPS[flag_app]
-            link_app(app, directory, request_id, sample_id, arguments, config)
+        for (app, app_version) in apps:
+            (app_name, directory) = FLAG_TO_APPS[app]
+            pipeline = get_pipeline(app, app_version, config)
+            link_app(pipeline, directory, request_id, sample_id, arguments, config)
 
     if arguments.get('link-patient'):
-        for flag_app in apps:
-            (app, directory) = FLAG_TO_APPS[flag_app]
-            if(flag_app == "bams"):
-                link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, config)
+        for (app, app_version) in apps:
+            (app_name, directory) = FLAG_TO_APPS[app]
+            pipeline = get_pipeline(app_name, app_version, config)
+            if(app == "bams"):
+                link_bams_by_patient_id(pipeline, "bams", request_id, sample_id, arguments, config)
             else:
-                link_single_sample_workflows_by_patient_id(app, directory, request_id, sample_id, arguments,
+                link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments,
                                                        config)
 
-def get_pipeline(name, config):
+def get_pipeline(name, version, config):
+    if version:
+        param = "version=%s" % version
+    else:
+        param = "default=1"
+
     response = requests.get(urljoin(config['beagle_endpoint'],
-                                    "{}?name={}".format(config['api']['pipelines'], name)),
-                                    #"{}?name={}&default=1".format(config['api']['pipelines'], name)),
+                                    "{}?name={}&{}".format(config['api']['pipelines'], name, param)),
                             headers={'Authorization': 'Bearer %s' % config['token']})
 
     try:
@@ -66,9 +71,18 @@ def get_group_id(tags, apps, config):
 def get_arguments(arguments):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
-    apps = arguments.get('--apps')
+    app_tags = arguments.get('--apps')
     if request_id:
         request_id = request_id[0]
+
+    apps = [] # [(tag, version), ...]
+    for app in app_tags:
+        r = app.split(":")
+        if len(r) > 1:
+            apps.append((r[0], r[1]))
+        else:
+            apps.append((r[0], None))
+
     return request_id, sample_id, apps
 
 
@@ -106,8 +120,7 @@ def get_files_by_run_id(run_id, config):
 def get_file_path(file):
     return file["location"][7:]
 
-def link_app(app, directory, request_id, sample_id, arguments, config):
-    pipeline = get_pipeline(app, config)
+def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./")
@@ -140,8 +153,7 @@ def link_app(app, directory, request_id, sample_id, arguments, config):
     return "Completed"
 
 
-def link_single_sample_workflows_by_patient_id(app, directory, request_id, sample_id, arguments, config):
-    pipeline = get_pipeline(app, config)
+def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./") / directory
@@ -176,8 +188,7 @@ def link_single_sample_workflows_by_patient_id(app, directory, request_id, sampl
 
         os.symlink(sample_version_path.absolute(), sample_path / "current")
 
-def link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, config):
-    pipeline = get_pipeline(app, config)
+def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
 
     path = Path("./") / directory
@@ -186,6 +197,9 @@ def link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, co
     apps = [pipeline["id"]]
 
     runs = get_runs(tags, apps, config)
+
+    if not runs:
+        return
 
     files = [] # (sample_id, /path/to/file)
 
@@ -214,6 +228,7 @@ def link_bams_by_patient_id(app, directory, request_id, sample_id, arguments, co
 
         try:
             os.symlink(file_path, sample_version_path / file_name)
+            print(sample_version_path.absolute(), file=sys.stdout)
         except Exception as e:
             print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
             continue
