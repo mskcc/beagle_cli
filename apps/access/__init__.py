@@ -3,6 +3,7 @@ import sys
 from collections import defaultdict
 from urllib.parse import urljoin
 from pathlib import Path
+import shutil
 import requests
 
 FLAG_TO_APPS = {
@@ -33,6 +34,7 @@ def access_commands(arguments, config):
                 link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments,
                                                        config)
 
+
 def get_pipeline(name, version, config):
     if version:
         param = "version=%s" % version
@@ -44,7 +46,8 @@ def get_pipeline(name, version, config):
                             headers={'Authorization': 'Bearer %s' % config['token']})
 
     try:
-        pipeline = response.json()["results"][0]
+        pipeline = response.json()
+        pipeline = pipeline["results"][0]
     except Exception as e:
         print("Pipeline '{}' does not exist" % name, file=sys.stderr)
         quit()
@@ -122,6 +125,7 @@ def get_file_path(file):
 
 def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
 
     path = Path("./")
     path_without_version = path / ("Project_" + request_id) / directory
@@ -138,23 +142,32 @@ def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     files = [] # (sample_id, /path/to/file)
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        try:
-            os.symlink(run["output_directory"], path / run["id"])
-            print((path / run["id"]).absolute(), file=sys.stdout)
-        except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+        if should_delete:
+            try:
+                os.unlink(path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
+        else:
+            try:
+                os.symlink(run["output_directory"], path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
 
     try:
         os.unlink(path_without_version / "current")
     except:
         pass
 
-    os.symlink(path.absolute(), path_without_version / "current")
+    if not should_delete:
+        os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
 
 
 def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
@@ -175,21 +188,32 @@ def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, 
         sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
         sample_version_path = sample_path / version
 
-        try:
-            os.symlink(run["output_directory"], sample_version_path)
-            print(sample_version_path.absolute(), file=sys.stdout)
-        except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+        if should_delete:
+            try:
+                os.unlink(sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
+        else:
+            try:
+                os.symlink(run["output_directory"], sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
 
         try:
             os.unlink(sample_path / "current")
         except:
             pass
 
-        os.symlink(sample_version_path.absolute(), sample_path / "current")
+        if not should_delete:
+            os.symlink(sample_version_path.absolute(), sample_path / "current")
+
+    return "Completed"
 
 def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
@@ -226,22 +250,30 @@ def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, argument
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-        try:
-            os.symlink(file_path, sample_version_path / file_name)
-            print(sample_version_path.absolute(), file=sys.stdout)
-        except Exception as e:
-            print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
-            continue
+        if should_delete:
+            try:
+                shutil.rmtree(sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
+        else:
+            try:
+                os.symlink(file_path, sample_version_path / file_name)
+                print((sample_version_path / file_name).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+                continue
 
         try:
             os.unlink(sample_path / "current")
         except Exception as e:
             pass
 
-        try:
-            os.symlink(sample_version_path.absolute(), sample_path / "current")
-        except Exception as e:
-            pass
+        if not should_delete:
+            try:
+                os.symlink(sample_version_path.absolute(), sample_path / "current")
+            except Exception as e:
+                pass
 
     return "Completed"
 
