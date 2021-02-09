@@ -180,7 +180,7 @@ def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, 
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        sample_id = run["tags"]["cmoSampleIds"][0]
+        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
