@@ -80,8 +80,8 @@ Usage:
   beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
-  beaglecli access link [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>]
-  beaglecli access link-bams [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>]
+  beaglecli access link [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams>]... [--delete]
+  beaglecli access link-patient [--request-id=<request_id>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams>]... [--delete]
   beaglecli --version
 
 Options:

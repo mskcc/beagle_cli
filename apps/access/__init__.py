@@ -1,27 +1,55 @@
-import requests
 import os
+import sys
 from collections import defaultdict
 from urllib.parse import urljoin
 from pathlib import Path
+import shutil
+import requests
+
+FLAG_TO_APPS = {
+    "msi": ("access legacy MSI", "microsatellite_instability"),
+    "cnv": ("access legacy CNV", "copy_number_variants"),
+    "sv": ("access legacy SV", "structural_variants"),
+    "snv": ("access legacy SNV", "small_variants"),
+    "bams": ("access legacy", "bam_qc"),
+}
 
 def access_commands(arguments, config):
     print('Running ACCESS')
-    if arguments.get('link-bams'):
-        return run_access_folder_bam_link_command(arguments, config)
 
+    request_id, sample_id, apps = get_arguments(arguments)
     if arguments.get('link'):
-        return run_access_folder_link_command(arguments, config)
+        for (app, app_version) in apps:
+            (app_name, directory) = FLAG_TO_APPS[app]
+            pipeline = get_pipeline(app_name, app_version, config)
+            link_app(pipeline, directory, request_id, sample_id, arguments, config)
+
+    if arguments.get('link-patient'):
+        for (app, app_version) in apps:
+            (app_name, directory) = FLAG_TO_APPS[app]
+            pipeline = get_pipeline(app_name, app_version, config)
+            if(app == "bams"):
+                link_bams_by_patient_id(pipeline, "bams", request_id, sample_id, arguments, config)
+            else:
+                link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments,
+                                                       config)
 
 
-def get_pipeline(name, config):
+def get_pipeline(name, version, config):
+    if version:
+        param = "version=%s" % version
+    else:
+        param = "default=1"
+
     response = requests.get(urljoin(config['beagle_endpoint'],
-                                    "{}?name={}".format(config['api']['pipelines'], name)),
+                                    "{}?name={}&{}".format(config['api']['pipelines'], name, param)),
                             headers={'Authorization': 'Bearer %s' % config['token']})
 
     try:
-        pipeline = response.json()["results"][0]
+        pipeline = response.json()
+        pipeline = pipeline["results"][0]
     except Exception as e:
-        print("Pipeline 'access legacy' does not exist")
+        print("Pipeline '{}' does not exist" % name, file=sys.stderr)
         quit()
     return pipeline
 
@@ -38,21 +66,33 @@ def get_group_id(tags, apps, config):
 
     latest_runs = response.json()["results"]
     if not latest_runs:
-        print("There are no runs for this id")
-        quit()
+        print("There are no runs for this request in the following app: %s" % str(apps), file=sys.stderr)
+        return None
 
     return latest_runs[0]["job_group"]
 
 def get_arguments(arguments):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
+    app_tags = arguments.get('--apps')
     if request_id:
         request_id = request_id[0]
-    return request_id, sample_id
+
+    apps = [] # [(tag, version), ...]
+    for app in app_tags:
+        r = app.split(":")
+        if len(r) > 1:
+            apps.append((r[0], r[1]))
+        else:
+            apps.append((r[0], None))
+
+    return request_id, sample_id, apps
 
 
 def get_runs(tags, apps, config):
     group_id = get_group_id(tags, apps, config)
+    if not group_id:
+        return None
 
     run_params = {
         "tags": tags,
@@ -83,14 +123,12 @@ def get_files_by_run_id(run_id, config):
 def get_file_path(file):
     return file["location"][7:]
 
-def run_access_folder_link_command(arguments, config):
-    request_id, sample_id = get_arguments(arguments)
-
-    pipeline = get_pipeline("access legacy", config)
+def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
 
     path = Path("./")
-    path_without_version = path / ("Project_" + request_id) / "bam_qc"
+    path_without_version = path / ("Project_" + request_id) / directory
     path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
@@ -98,32 +136,97 @@ def run_access_folder_link_command(arguments, config):
     apps = [pipeline["id"]]
 
     runs = get_runs(tags, apps, config)
+    if not runs:
+        return
 
     files = [] # (sample_id, /path/to/file)
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        try:
-            os.symlink(run["output_directory"], path / run["id"])
-        except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]))
+        if should_delete:
+            try:
+                os.unlink(path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
+        else:
+            try:
+                os.symlink(run["output_directory"], path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
 
-    os.symlink(path.absolute(), path_without_version / "current")
+    try:
+        os.unlink(path_without_version / "current")
+    except:
+        pass
+
+    if not should_delete:
+        os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
 
-def run_access_folder_bam_link_command(arguments, config):
-    request_id, sample_id = get_arguments(arguments)
 
-    pipeline = get_pipeline("access legacy", config)
+def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
 
-    path = Path("./")
+    path = Path("./") / directory
+
+    tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
+    apps = [pipeline["id"]]
+
+    runs = get_runs(tags, apps, config)
+    if not runs:
+        return
+
+    for run_meta in runs:
+        run = get_run_by_id(run_meta["id"], config)
+        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
+        a, b, _ = sample_id.split("-", 2)
+        patient_id = "-".join([a, b])
+
+        sample_path = path / patient_id / sample_id
+        sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+        sample_version_path = sample_path / version
+
+        if should_delete:
+            try:
+                os.unlink(sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
+        else:
+            try:
+                os.symlink(run["output_directory"], sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+
+        try:
+            os.unlink(sample_path / "current")
+        except:
+            pass
+
+        if not should_delete:
+            os.symlink(sample_version_path.absolute(), sample_path / "current")
+
+    return "Completed"
+
+def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
+    version = arguments.get("--dir-version") or pipeline["version"]
+    should_delete = arguments.get("--delete") or False
+
+    path = Path("./") / directory
 
     tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
     apps = [pipeline["id"]]
 
     runs = get_runs(tags, apps, config)
 
+    if not runs:
+        return
+
     files = [] # (sample_id, /path/to/file)
+
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
@@ -142,20 +245,35 @@ def run_access_folder_bam_link_command(arguments, config):
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
+
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-        try:
-            os.symlink(file_path, sample_version_path / file_name)
-        except Exception as e:
-            print("could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path))
-            continue
+        if should_delete:
+            try:
+                shutil.rmtree(sample_version_path)
+                print(sample_version_path.absolute(), file=sys.stdout)
+            except Exception as e:
+                print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
+        else:
+            try:
+                os.symlink(file_path, sample_version_path / file_name)
+                print((sample_version_path / file_name).absolute(), file=sys.stdout)
+            except Exception as e:
+                print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+                continue
 
         try:
-            os.symlink(sample_version_path.absolute(), sample_path / "current")
+            os.unlink(sample_path / "current")
         except Exception as e:
             pass
+
+        if not should_delete:
+            try:
+                os.symlink(sample_version_path.absolute(), sample_path / "current")
+            except Exception as e:
+                pass
 
     return "Completed"
 
@@ -173,16 +291,10 @@ def find_files_by_sample(file_group, sample_id = None):
                 if "File" == file_group["file"]["class"] and (not sample_id or
                                                               file_sample_id ==
                                                               sample_id):
-                    print(file_group["file"]["basename"])
-                    if file_group["file"]["basename"] == "C-0EU9LX-L015-d_cl_aln_srt_MD_IR_FX_BR__aln_srt_IR_FX.bam":
-                        print("Here's our file")
-                        print(file_group["file"]["secondaryFiles"])
                     return [(file_sample_id, file_group["file"])] + [(file_sample_id,
                                                                       f) for f in file_group["file"]["secondaryFiles"]]
             except Exception as e:
-                print("ERROR:")
-                print(e)
-                print(file_group)
+                print(e, file=sys.stderr)
         elif "class" in file_group:
             if file_group["class"] == "Directory":
                 return find_files_by_sample(file_group["listing"], sample_id=file_group["basename"])
