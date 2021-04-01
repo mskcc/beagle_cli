@@ -25,7 +25,7 @@ from urllib.parse import urljoin
 from apps.access import access_commands
 
 
-BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://localhost:6991')
+BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://voyager:5001')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
 BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
 
