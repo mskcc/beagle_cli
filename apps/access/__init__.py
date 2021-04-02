@@ -23,19 +23,21 @@ def access_commands(arguments, config):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
             operator_run = get_operator_run(app_name, app_version, tags, config)
-            link_app(operator_run, directory, request_id, sample_id, arguments, config)
+            if operator_run:
+                link_app(operator_run, directory, request_id, sample_id, arguments, config)
 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
             operator_run = get_operator_run(app_name, app_version, tags, config)
-            if(app == "bams"):
-                link_bams_by_patient_id(operator_run, "bams", request_id, sample_id, arguments, config)
-            else:
-                link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
-                                                       config)
+            if operator_run:
+                if(app == "bams"):
+                    link_bams_by_patient_id(operator_run, "bams", request_id, sample_id, arguments, config)
+                else:
+                    link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
+                                                           config)
 
-def get_operator_run(app_name, app_version, tags, config):
+def get_operator_run(app_name, app_version=None, tags=None, config=None):
     latest_operator_run = {
         "tags": tags,
         "status": "COMPLETED",
@@ -53,7 +55,7 @@ def get_operator_run(app_name, app_version, tags, config):
     latest_runs = response.json()["results"]
     if not latest_runs:
         print("There are no completed operator runs for this request in the following app: %s:%s" %
-              str(app_name), str(app_version), file=sys.stderr)
+              (str(app_name), str(app_version)), file=sys.stderr)
         return None
 
     return latest_runs[0]
