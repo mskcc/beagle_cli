@@ -82,6 +82,7 @@ def get_runs(operator_run_id, config):
     run_params = {
         "operator_run": operator_run_id,
         "page_size": 1000,
+        "status": "COMPLETED"
     }
 
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
