@@ -18,58 +18,47 @@ def access_commands(arguments, config):
     print('Running ACCESS')
 
     request_id, sample_id, apps = get_arguments(arguments)
+    tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"requestId":"%s"}' % request_id
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            pipeline = get_pipeline(app_name, app_version, config)
-            link_app(pipeline, directory, request_id, sample_id, arguments, config)
+            operator_run = get_operator_run(app_name, app_version, tags, config)
+            if operator_run:
+                link_app(operator_run, directory, request_id, sample_id, arguments, config)
 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            pipeline = get_pipeline(app_name, app_version, config)
-            if(app == "bams"):
-                link_bams_by_patient_id(pipeline, "bams", request_id, sample_id, arguments, config)
-            else:
-                link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments,
-                                                       config)
+            operator_run = get_operator_run(app_name, app_version, tags, config)
+            if operator_run:
+                if(app == "bams"):
+                    link_bams_by_patient_id(operator_run, "bams", request_id, sample_id, arguments, config)
+                else:
+                    link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
+                                                           config)
 
-
-def get_pipeline(name, version, config):
-    if version:
-        param = "version=%s" % version
-    else:
-        param = "default=1"
-
-    response = requests.get(urljoin(config['beagle_endpoint'],
-                                    "{}?name={}&{}".format(config['api']['pipelines'], name, param)),
-                            headers={'Authorization': 'Bearer %s' % config['token']})
-
-    try:
-        pipeline = response.json()
-        pipeline = pipeline["results"][0]
-    except Exception as e:
-        print("Pipeline '{}' does not exist" % name, file=sys.stderr)
-        quit()
-    return pipeline
-
-def get_group_id(tags, apps, config):
-    latest_run_params = {
+def get_operator_run(app_name, app_version=None, tags=None, config=None):
+    latest_operator_run = {
         "tags": tags,
         "status": "COMPLETED",
         "page_size": 1,
-        "apps": apps
+        "app_name": app_name
     }
 
-    response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
-                            headers={'Authorization': 'Bearer %s' % config['token']}, params=latest_run_params)
+    if app_version:
+        latest_operator_run["app_version"] = app_version
+
+    response = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
+                            headers={'Authorization': 'Bearer %s' % config['token']},
+                            params=latest_operator_run)
 
     latest_runs = response.json()["results"]
     if not latest_runs:
-        print("There are no runs for this request in the following app: %s" % str(apps), file=sys.stderr)
+        print("There are no completed operator runs for this request in the following app: %s:%s" %
+              (str(app_name), str(app_version)), file=sys.stderr)
         return None
 
-    return latest_runs[0]["job_group"]
+    return latest_runs[0]
 
 def get_arguments(arguments):
     request_id = arguments.get('--request-id')
@@ -89,17 +78,11 @@ def get_arguments(arguments):
     return request_id, sample_id, apps
 
 
-def get_runs(tags, apps, config):
-    group_id = get_group_id(tags, apps, config)
-    if not group_id:
-        return None
-
+def get_runs(operator_run_id, config):
     run_params = {
-        "tags": tags,
-        "status": "COMPLETED",
+        "operator_run": operator_run_id,
         "page_size": 1000,
-        "job_groups": [group_id],
-        "apps": apps
+        "status": "COMPLETED"
     }
 
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
@@ -123,8 +106,8 @@ def get_files_by_run_id(run_id, config):
 def get_file_path(file):
     return file["location"][7:]
 
-def link_app(pipeline, directory, request_id, sample_id, arguments, config):
-    version = arguments.get("--dir-version") or pipeline["version"]
+def link_app(operator_run, directory, request_id, sample_id, arguments, config):
+    version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./")
@@ -132,10 +115,7 @@ def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-    tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
-    apps = [pipeline["id"]]
-
-    runs = get_runs(tags, apps, config)
+    runs = get_runs(operator_run["id"], config)
     if not runs:
         return
 
@@ -165,16 +145,13 @@ def link_app(pipeline, directory, request_id, sample_id, arguments, config):
     return "Completed"
 
 
-def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
-    version = arguments.get("--dir-version") or pipeline["version"]
+def link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config):
+    version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
-    apps = [pipeline["id"]]
-
-    runs = get_runs(tags, apps, config)
+    runs = get_runs(operator_run["id"], config)
     if not runs:
         return
 
@@ -211,16 +188,13 @@ def link_single_sample_workflows_by_patient_id(pipeline, directory, request_id, 
 
     return "Completed"
 
-def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, arguments, config):
-    version = arguments.get("--dir-version") or pipeline["version"]
+def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config):
+    version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    tags = "cmoSampleIds:%s" % sample_id if sample_id else "requestId:%s" % request_id
-    apps = [pipeline["id"]]
-
-    runs = get_runs(tags, apps, config)
+    runs = get_runs(operator_run["id"], config)
 
     if not runs:
         return
@@ -280,6 +254,8 @@ def link_bams_by_patient_id(pipeline, directory, request_id, sample_id, argument
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
         files = []
+        if not file_group:
+            return []
         if type(file_group) == list:
             if len(file_group) > 1:
                 return traverse(file_group[0]) + traverse(file_group[1:])

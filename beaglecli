@@ -50,6 +50,7 @@ API = {
     "file-groups": 'v0/fs/file-groups/',
     'run': '/v0/run/api/',
     'run-operator-request': '/v0/run/operator/request/',
+    'operator-runs': '/v0/run/operator-runs/',
     'etl': '/v0/etl/jobs/',
     'import-requests': '/v0/etl/import-requests/',
     'tempo-mpgen': '/v0/run/operator/tempo_mpgen/',
