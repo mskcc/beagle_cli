@@ -24,7 +24,13 @@ def access_commands(arguments, config):
             (app_name, directory) = FLAG_TO_APPS[app]
             operator_run = get_operator_run(app_name, app_version, tags, config)
             if operator_run:
-                link_app(operator_run, directory, request_id, sample_id, arguments, config)
+                if arguments.get('--single-dir'):
+                    if app == "bams":
+                        link_bams_to_single_dir(operator_run, app, request_id, sample_id, arguments, config)
+                    else:
+                        print("Apps other than bams not supported at this time")
+                else:
+                    link_app(operator_run, directory, request_id, sample_id, arguments, config)
 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
@@ -185,6 +191,60 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
         if not should_delete:
             os.symlink(sample_version_path.absolute(), sample_path / "current")
+
+    return "Completed"
+
+def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, arguments, config):
+    version = arguments.get("--dir-version") or operator_run["app_version"]
+
+    path = Path("./") / directory / ("Project_" + request_id)
+
+    runs = get_runs(operator_run["id"], config)
+
+    if not runs:
+        return
+
+    files = [] # (sample_id, /path/to/file)
+
+    for run in runs:
+        for file_group in get_files_by_run_id(run["id"], config):
+            files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
+
+    accepted_file_types = ['.bam', '.bai']
+    for (sample_id, file) in files:
+        file_path = get_file_path(file)
+        _, file_ext = os.path.splitext(file_path)
+
+        if file_ext not in accepted_file_types:
+            continue
+
+        file_name = os.path.basename(file_path)
+
+        sample_id, _ = file_name.split("_", 1)
+        a, b, _ = sample_id.split("-", 2)
+        patient_id = "-".join([a, b])
+
+
+        sample_path = path
+        sample_version_path = sample_path / version
+        sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+
+        try:
+            os.symlink(file_path, sample_version_path / file_name)
+            print((sample_version_path / file_name).absolute(), file=sys.stdout)
+        except Exception as e:
+            print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+            continue
+
+        try:
+            os.unlink(sample_path / "current")
+        except Exception as e:
+            pass
+
+        try:
+            os.symlink(sample_version_path.absolute(), sample_path / "current")
+        except Exception as e:
+            pass
 
     return "Completed"
 
