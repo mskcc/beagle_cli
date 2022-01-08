@@ -13,6 +13,7 @@ FLAG_TO_APPS = {
     "snv": ("access legacy SNV", "small_variants"),
     "bams": ("access legacy", "bam_qc"),
     "nucleo": ("access nucleo", "bam_qc"),
+    "cmoch": ("access cmoch", "bam_qc"),
 }
 
 def access_commands(arguments, config):
