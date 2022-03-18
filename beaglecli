@@ -10,7 +10,7 @@ $ beaglecli run list --request-id 09324_C --page-size 100
 
 $ beaglecli run get 648a7108-bafe-455a-a98e-67be7425562b
 
-$ beaglecli files list --metadata=requestId:09324_C
+$ beaglecli files list --metadata=igoRequestId:09324_C
 
 """
 import os
@@ -124,7 +124,8 @@ class Config(object):
 
     def dump(self):
         with open(CONFIG_LOCATION, 'w') as f:
-            json.dump({'token': self.token, 'refresh': self.refresh, 'next': self.next, 'prev': self.prev}, f)
+            json.dump({'token': self.token, 'refresh': self.refresh,
+                      'next': self.next, 'prev': self.prev}, f)
 
     def __repr__(self):
         return 'token: %s, next: %s, prev: %s' % (self.token, self.next, self.prev)
@@ -190,7 +191,7 @@ def tempo_mpgen_commands(arguments, config):
     if arguments.get('override'):
         print("Submitting pairing overrides.")
         return _run_tempo_mpgen_override_command(arguments, config)
-    else:         
+    else:
         return _run_tempo_mpgen_command(arguments, config)
 
 
@@ -201,7 +202,6 @@ def sample_commands(arguments, config):
         return _create_sample(arguments, config)
     if arguments.get('redact'):
         return _redact_sample(arguments, config)
-
 
 
 def command(arguments, config):
@@ -271,18 +271,21 @@ def authenticate_command(config):
 
 
 def _authenticate(username, password):
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['auth']), {"username": username, "password": password})
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['auth']), {
+                             "username": username, "password": password})
     if response.status_code == 200:
         return response.json()
     raise Exception
 
 
 def _check_is_authenticated(config):
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['verify']), {'token': config.token})
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['verify']), {
+                             'token': config.token})
     if response.status_code == 200:
         return True
     else:
-        response = requests.post(urljoin(BEAGLE_ENDPOINT, API['refresh']), {'refresh': config.refresh})
+        response = requests.post(urljoin(BEAGLE_ENDPOINT, API['refresh']), {
+                                 'refresh': config.refresh})
         if response.status_code == 200:
             config.set('token', response.json()['access'])
             return True
@@ -369,7 +372,8 @@ def _list_storage(arguments, config):
     params = dict()
     if page_size:
         params['page_size'] = page_size
-    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['storage']), headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['storage']), headers={
+                            'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     _set_next_and_prev(config, response.json())
     return response_json
@@ -390,7 +394,8 @@ def _list_files(arguments, config):
     params['filename_regex'] = filename_regex
     if page_size:
         params['page_size'] = page_size
-    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={
+                            'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     _set_next_and_prev(config, response.json())
     return response_json
@@ -589,7 +594,8 @@ def _run_tempo_mpgen_override_command(arguments, config):
         tumors_override = tumors_override.split(',')
 
     if len(normals_override) != len(tumors_override):
-        response_json = {'details': 'Number of tumors and normals not equal for pair override'}
+        response_json = {
+            'details': 'Number of tumors and normals not equal for pair override'}
         return response_json
     else:
         print("Submitting %i pair overrides." % len(normals_override))
@@ -628,12 +634,14 @@ def _run_tempo_mpgen_command(arguments, config):
 
 # Delete
 
+
 def _delete_file_command(arguments, config):
     file_ids = arguments.get('--file-id')
     result = dict()
     for job in file_ids:
         url = urljoin(BEAGLE_ENDPOINT, API['files']) + job
-        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        response = requests.delete(
+            url, headers={'Authorization': 'Bearer %s' % config.token})
         result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
     return result
 
@@ -643,7 +651,8 @@ def _delete_etl_job_command(arguments, config):
     result = dict()
     for job in job_ids:
         url = urljoin(BEAGLE_ENDPOINT, API['etl']) + job
-        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        response = requests.delete(
+            url, headers={'Authorization': 'Bearer %s' % config.token})
         result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
     return result
 
@@ -655,18 +664,18 @@ def _submit_operator_request_run(arguments, config):
     job_group_id = arguments.get('--job-group-id')
     for_each = arguments.get('--for-each')
     body = {
-            'request_ids': request_ids,
-            'pipeline': pipeline,
-            'for_each': True,
-            'job_group_id': None
-           }
+        'request_ids': request_ids,
+        'pipeline': pipeline,
+        'for_each': True,
+        'job_group_id': None
+    }
     if job_group_id:
         body['job_group_id'] = job_group_id
     if for_each:
         body['for_each'] = for_each
     url = urljoin(BEAGLE_ENDPOINT, API['run-operator-request'])
     response = requests.post(url, data=json.dumps(body),
-            headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+                             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
