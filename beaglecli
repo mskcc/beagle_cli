@@ -30,6 +30,7 @@ from apps.lims import lims_commands
 BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://voyager:5001')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
 BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
+SMILE_ENDPOINT = os.environ.get('SMILE_ENDPOINT', )
 
 
 CONFIG_TEMPLATE = {
@@ -58,6 +59,10 @@ API = {
     'sample': '/v0/fs/sample/'
 }
 
+SMILE_API = {
+    'request': 'request/'
+        }
+
 USAGE = """
 Beagle API Command Line Interface
 
@@ -72,6 +77,7 @@ Usage:
   beaglecli sample redact <sample-id> [--value=<redact>]
   beaglecli storage create <storage_name>
   beaglecli storage list
+  beaglecli smile check-request <request_id>
   beaglecli file-types create <file_type>
   beaglecli file-types list
   beaglecli file-group create <file_group_name> <storage>
@@ -153,6 +159,14 @@ def storage_commands(arguments, config):
         return _create_storage(arguments, config)
 
 
+def smile_commands(arguments, config):
+    if not SMILE_ENDPOINT:
+        print("SMILE_ENDPOINT not defined; exiting.")
+        sys.exit(1)
+    if arguments.get('check-request'):
+        return _check_request_smile(arguments, config)
+
+
 def file_types_commands(arguments, config):
     if arguments.get('list'):
         return _get_file_types_command(arguments, config)
@@ -203,7 +217,6 @@ def sample_commands(arguments, config):
         return _redact_sample(arguments, config)
 
 
-
 def command(arguments, config):
     if arguments.get('files'):
         return files_commands(arguments, config)
@@ -221,6 +234,8 @@ def command(arguments, config):
         return import_commands(arguments, config)
     if arguments.get('tempo-mpgen'):
         return (tempo_mpgen_commands(arguments, config))
+    if arguments.get('smile'):
+        return (smile_commands(arguments, config))
     if arguments.get('access'):
         return (access_commands(arguments, {
             'token': config.token,
@@ -580,6 +595,9 @@ def _import_requests_command(arguments, config):
         print(response.request.body)
 
 
+# Run Tempo MPGen
+
+
 def _run_tempo_mpgen_override_command(arguments, config):
     normals_override = arguments.get('--normals')
     tumors_override = arguments.get('--tumors')
@@ -648,6 +666,9 @@ def _delete_etl_job_command(arguments, config):
     return result
 
 
+# Submit operator request run
+
+
 def _submit_operator_request_run(arguments, config):
     request_ids = arguments.get('--request-ids')
     request_ids = request_ids.split(',')
@@ -671,6 +692,9 @@ def _submit_operator_request_run(arguments, config):
     return response_json
 
 
+# Redact sample
+
+
 def _redact_sample(arguments, config):
     sample_id = arguments.get('<sample-id>')
     redact = arguments.get('--value')
@@ -690,6 +714,14 @@ def _redact_sample(arguments, config):
     response = requests.patch(url,
                               dict(redact=redact),
                               headers={'Authorization': 'Bearer %s' % config.token})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
+
+def _check_request_smile(arguments, config):
+    request_id = arguments.get('<request_id>')
+    url = urljoin(SMILE_ENDPOINT, SMILE_API['request']) + request_id
+    response = requests.get(url)
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
