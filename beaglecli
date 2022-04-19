@@ -78,6 +78,7 @@ Usage:
   beaglecli storage create <storage_name>
   beaglecli storage list
   beaglecli smile check-request <request_id>
+  beaglecli smile compare-request <request_id>
   beaglecli file-types create <file_type>
   beaglecli file-types list
   beaglecli file-group create <file_group_name> <storage>
@@ -165,6 +166,8 @@ def smile_commands(arguments, config):
         sys.exit(1)
     if arguments.get('check-request'):
         return _check_request_smile(arguments, config)
+    if arguments.get('compare-request'):
+        return _compare_request_smile(arguments, config)
 
 
 def file_types_commands(arguments, config):
@@ -724,6 +727,18 @@ def _check_request_smile(arguments, config):
     response = requests.get(url)
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
+
+def _compare_request_smile(arguments, config):
+    request_id = arguments.get('<request_id>')
+    url_smile = urljoin(SMILE_ENDPOINT, SMILE_API['request']) + request_id
+    response_smile = requests.get(url_smile)
+    response_json_smile = json.dumps(response_smile.json(), indent=4)
+    url_beagle = urljoin(BEAGLE_ENDPOINT, API['files']) + "?metadata=igoRequestId:" + request_id
+    response_beagle = requests.get(url_beagle,headers={'Authorization': 'Bearer %s' % config.token})
+    response_json_beagle = json.dumps(response_beagle.json(), indent=4)
+
+    # add comparison of response jsons from smile and beagle
 
 
 if __name__ == '__main__':
