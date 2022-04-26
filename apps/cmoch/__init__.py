@@ -7,7 +7,7 @@ import shutil
 import requests
 
 FLAG_TO_APPS = {
-    "bams": ("cmoch bams", "bam_qc"),
+    "bams": ("Access CMO-CH", "bams"),
 }
 
 
