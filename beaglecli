@@ -10,17 +10,21 @@ $ beaglecli run list --request-id 09324_C --page-size 100
 
 $ beaglecli run get 648a7108-bafe-455a-a98e-67be7425562b
 
-$ beaglecli files list --metadata=requestId:09324_C
+$ beaglecli files list --metadata=igoRequestId:09324_C
 
 """
+from cmath import sin
 import os
 import sys
+from urllib import response
 import requests
 import json
 import getpass
 from docopt import docopt
 from os.path import expanduser
 from urllib.parse import urljoin
+from datetime import datetime
+import traceback
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
@@ -51,6 +55,7 @@ API = {
     "file-groups": 'v0/fs/file-groups/',
     'run': '/v0/run/api/',
     'run-operator-request': '/v0/run/operator/request/',
+    'run-operator-runs': '/v0/run/operator/runs/',
     'operator-runs': '/v0/run/operator-runs/',
     'etl': '/v0/etl/jobs/',
     'import-requests': '/v0/etl/import-requests/',
@@ -78,8 +83,10 @@ Usage:
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
+  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
+  beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
@@ -124,7 +131,8 @@ class Config(object):
 
     def dump(self):
         with open(CONFIG_LOCATION, 'w') as f:
-            json.dump({'token': self.token, 'refresh': self.refresh, 'next': self.next, 'prev': self.prev}, f)
+            json.dump({'token': self.token, 'refresh': self.refresh,
+                      'next': self.next, 'prev': self.prev}, f)
 
     def __repr__(self):
         return 'token: %s, next: %s, prev: %s' % (self.token, self.next, self.prev)
@@ -174,6 +182,10 @@ def run_commands(arguments, config):
         return _get_single_run_command(arguments, config)
     if arguments.get('submit-request'):
         return _submit_operator_request_run(arguments, config)
+    if arguments.get('submit-runs'):
+        return _submit_operator_runs(arguments, config)
+    if arguments.get('latest-info'):
+        return _get_latest_run_info_command(arguments, config)
 
 
 def etl_job_commands(arguments, config):
@@ -190,7 +202,7 @@ def tempo_mpgen_commands(arguments, config):
     if arguments.get('override'):
         print("Submitting pairing overrides.")
         return _run_tempo_mpgen_override_command(arguments, config)
-    else:         
+    else:
         return _run_tempo_mpgen_command(arguments, config)
 
 
@@ -201,7 +213,6 @@ def sample_commands(arguments, config):
         return _create_sample(arguments, config)
     if arguments.get('redact'):
         return _redact_sample(arguments, config)
-
 
 
 def command(arguments, config):
@@ -271,18 +282,21 @@ def authenticate_command(config):
 
 
 def _authenticate(username, password):
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['auth']), {"username": username, "password": password})
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['auth']), {
+                             "username": username, "password": password})
     if response.status_code == 200:
         return response.json()
     raise Exception
 
 
 def _check_is_authenticated(config):
-    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['verify']), {'token': config.token})
+    response = requests.post(urljoin(BEAGLE_ENDPOINT, API['verify']), {
+                             'token': config.token})
     if response.status_code == 200:
         return True
     else:
-        response = requests.post(urljoin(BEAGLE_ENDPOINT, API['refresh']), {'refresh': config.refresh})
+        response = requests.post(urljoin(BEAGLE_ENDPOINT, API['refresh']), {
+                                 'refresh': config.refresh})
         if response.status_code == 200:
             config.set('token', response.json()['access'])
             return True
@@ -310,6 +324,85 @@ def _get_single_run_command(arguments, config):
 
 
 # List commands
+
+def _get_latest_runs(run_dict):
+    run_list = []
+    run_date = None
+    for single_group in run_dict:
+        current_runs = []
+        current_max = None
+        for single_run in run_dict[single_group]:
+            started = datetime.fromisoformat(single_run['created_date'])
+            if not current_max:
+                current_max = started
+            if current_max < started:
+                current_max = started
+            current_runs.append(single_run)
+        if not run_date:
+            run_date = current_max
+            run_list = current_runs
+        else:
+            if current_max > run_date:
+                run_list = current_runs
+    return run_list
+
+
+def _get_latest_run_info_command(arguments, config):
+    job_group = arguments.get('--job-group')
+    jira_id = arguments.get('--jira-id')
+    requestId = arguments.get('--request-id')
+    completed = arguments.get('--completed')
+    output_file = arguments.get('--output-file')
+    info_keys = ['id', 'status', 'name', 'tags', 'message', 'app',
+                 'operator_run', 'created_date', 'finished_date', 'execution_id']
+    file_keys = ['name', 'status', 'tags', 'message', 'id', 'execution_id']
+    params = dict()
+    if requestId:
+        params['requestId'] = requestId
+    if job_group:
+        params['job_groups'] = job_group
+    if jira_id:
+        params['jira_id'] = jira_id
+    params['page_size'] = 1000000
+    params['full'] = True
+    if completed:
+        params['status'] = "COMPLETED"
+    # params['values_run'] = ['id', 'status', 'name', 'tags', 'message',
+    #                        'app', 'operator_run', 'created_date', 'finished_date']
+    url = urljoin(BEAGLE_ENDPOINT, API['run'])
+    response = requests.get(url,
+                            headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response_json = response.json()
+    run_list = {}
+    for single_run in response_json['results']:
+        run_data = {}
+        for single_key in info_keys:
+            if single_key in single_run:
+                run_data[single_key] = single_run[single_key]
+        app_name = run_data['app']
+        operator_run = run_data['operator_run']
+        if app_name not in run_list:
+            run_list[app_name] = {}
+        if operator_run not in run_list[app_name]:
+            run_list[app_name][operator_run] = []
+        run_list[app_name][operator_run].append(run_data)
+    latest_runs = []
+    for single_app in run_list:
+        latest_runs += _get_latest_runs(run_list[single_app])
+    response_json = json.dumps(latest_runs, indent=4)
+    if output_file:
+        output_str = "redact(y/n)\t" + "\t".join(file_keys) + "\n"
+        for single_run in latest_runs:
+            output_str += "n"
+            for single_key in file_keys:
+                output_str += "\t" + str(single_run[single_key])
+            output_str += "\n"
+        current_dir = os.getcwd()
+        output_file_path = os.path.join(current_dir, output_file)
+        with open(output_file_path, "w") as output_file_obj:
+            output_file_obj.write(output_str)
+        response_json = "Done! Output location: " + str(output_file_path)
+    return response_json
 
 
 def _get_runs_command(arguments, config):
@@ -369,7 +462,8 @@ def _list_storage(arguments, config):
     params = dict()
     if page_size:
         params['page_size'] = page_size
-    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['storage']), headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['storage']), headers={
+                            'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     _set_next_and_prev(config, response.json())
     return response_json
@@ -390,7 +484,8 @@ def _list_files(arguments, config):
     params['filename_regex'] = filename_regex
     if page_size:
         params['page_size'] = page_size
-    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={'Authorization': 'Bearer %s' % config.token}, params=params)
+    response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={
+                            'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     _set_next_and_prev(config, response.json())
     return response_json
@@ -589,7 +684,8 @@ def _run_tempo_mpgen_override_command(arguments, config):
         tumors_override = tumors_override.split(',')
 
     if len(normals_override) != len(tumors_override):
-        response_json = {'details': 'Number of tumors and normals not equal for pair override'}
+        response_json = {
+            'details': 'Number of tumors and normals not equal for pair override'}
         return response_json
     else:
         print("Submitting %i pair overrides." % len(normals_override))
@@ -628,12 +724,14 @@ def _run_tempo_mpgen_command(arguments, config):
 
 # Delete
 
+
 def _delete_file_command(arguments, config):
     file_ids = arguments.get('--file-id')
     result = dict()
     for job in file_ids:
         url = urljoin(BEAGLE_ENDPOINT, API['files']) + job
-        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        response = requests.delete(
+            url, headers={'Authorization': 'Bearer %s' % config.token})
         result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
     return result
 
@@ -643,7 +741,8 @@ def _delete_etl_job_command(arguments, config):
     result = dict()
     for job in job_ids:
         url = urljoin(BEAGLE_ENDPOINT, API['etl']) + job
-        response = requests.delete(url, headers={'Authorization': 'Bearer %s' % config.token})
+        response = requests.delete(
+            url, headers={'Authorization': 'Bearer %s' % config.token})
         result[job] = "Successfully deleted" if response.status_code == 204 else "Failed to be deleted"
     return result
 
@@ -655,18 +754,66 @@ def _submit_operator_request_run(arguments, config):
     job_group_id = arguments.get('--job-group-id')
     for_each = arguments.get('--for-each')
     body = {
-            'request_ids': request_ids,
-            'pipeline': pipeline,
-            'for_each': True,
-            'job_group_id': None
-           }
+        'request_ids': request_ids,
+        'pipeline': pipeline,
+        'for_each': True,
+        'job_group_id': None
+    }
     if job_group_id:
         body['job_group_id'] = job_group_id
     if for_each:
         body['for_each'] = for_each
     url = urljoin(BEAGLE_ENDPOINT, API['run-operator-request'])
     response = requests.post(url, data=json.dumps(body),
-            headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+                             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+    response_json = json.dumps(response.json(), indent=4)
+    return response_json
+
+
+def _submit_operator_runs(arguments, config):
+    run_ids = arguments.get('--run-ids')
+    run_file = arguments.get('--run-file')
+    pipelines = arguments.get('--pipelines')
+    versions = arguments.get('--versions')
+    if run_file and run_ids:
+        return "Error: You cannot specify both a run_file and run ids"
+    if not run_file and not run_ids:
+        return "Error: You need to specify either a run_file or run ids"
+    if len(pipelines) != len(versions):
+        return "Error: Pipeline and pipeline version lists are not matching lengths"
+    if run_file:
+        file_runs = []
+        try:
+            with open(run_file, 'r') as run_file_obj:
+                run_file_obj.readline()
+                for single_line in run_file_obj:
+                    single_line_split = single_line.split("\t")
+                    if single_line_split[0] == 'y' or single_line_split[0] == 'Y' or single_line_split[0] == '1':
+                        continue
+                    file_runs.append(single_line_split[5])
+        except:
+            traceback.print_exc()
+            return "Error processing file. Make sure its the same file from lastest-info"
+        run_ids = file_runs
+    if not run_ids:
+        return "Error: No runs specified"
+    job_group_id = arguments.get('--job-group-id')
+    for_each = arguments.get('--for-each')
+    body = {
+        'run_ids': run_ids,
+        'pipeline': pipelines,
+        'pipeline_versions': versions,
+        'for_each': False,
+        'job_group_id': None
+    }
+    if job_group_id:
+        body['job_group_id'] = job_group_id
+    if for_each:
+        body['for_each'] = for_each
+    url = urljoin(BEAGLE_ENDPOINT, API['run-operator-runs'])
+    print(body)
+    response = requests.post(url, data=json.dumps(body),
+                             headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 

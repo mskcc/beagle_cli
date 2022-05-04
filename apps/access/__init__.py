@@ -19,7 +19,7 @@ def access_commands(arguments, config):
     print('Running ACCESS')
 
     request_id, sample_id, apps = get_arguments(arguments)
-    tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"requestId":"%s"}' % request_id
+    tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request_id
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
