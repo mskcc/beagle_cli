@@ -21,6 +21,7 @@ import requests
 import json
 import getpass
 from docopt import docopt
+from os.path import abspath
 from os.path import expanduser
 from urllib.parse import urljoin
 from datetime import datetime
@@ -85,6 +86,7 @@ Usage:
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
   beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed]
   beaglecli run get <run_id>
+  beaglecli run create <path_to_run_json>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli import-requests --request-ids=<request_id>... [--redelivery=<redelivery>]
@@ -180,6 +182,8 @@ def run_commands(arguments, config):
         return _get_runs_command(arguments, config)
     if arguments.get('get'):
         return _get_single_run_command(arguments, config)
+    if arguments.get('create'):
+        return _create_single_run_command(arguments, config)
     if arguments.get('submit-request'):
         return _submit_operator_request_run(arguments, config)
     if arguments.get('submit-runs'):
@@ -322,6 +326,31 @@ def _get_single_run_command(arguments, config):
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
+
+def _validate_run(run):
+    REQUIRED_FIELDS = ["name", "tags", "app", "inputs"]
+    missing = []
+    for key in REQUIRED_FIELDS:
+        if key not in run.keys():
+            missing.append(key)
+    return missing
+
+
+def _create_single_run_command(arguments, config):
+    run_json_path = arguments.get('<path_to_run_json>')
+    url = urljoin(BEAGLE_ENDPOINT, API['run'])
+    if not os.path.exists(abspath(run_json_path)):
+        return "File don't exist %s" % run_json_path
+    with open(abspath(run_json_path), 'r') as f:
+        run_json = json.load(f)
+        missing = _validate_run(run_json)
+        if missing:
+            return "Missing fields: %s" % str(missing)
+        response = requests.post(url,
+                                 data=json.dumps(run_json),
+                                 headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
+        response_json = json.dumps(response.json(), indent=4)
+        return response_json
 
 # List commands
 
