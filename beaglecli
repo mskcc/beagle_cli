@@ -801,7 +801,7 @@ def _submit_operator_runs(arguments, config):
     for_each = arguments.get('--for-each')
     body = {
         'run_ids': run_ids,
-        'pipeline': pipelines,
+        'pipelines': pipelines,
         'pipeline_versions': versions,
         'for_each': False,
         'job_group_id': None
