@@ -646,6 +646,10 @@ def _patch_file(arguments, config):
     if metadata_args:
         for item in metadata_args:
             k, v = item.split(':')
+            if v == "True":
+                v = True
+            if v == "False":
+                v = False
             metadata[k] = v
     body['metadata'] = json.dumps(metadata)
     response = requests.patch(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
