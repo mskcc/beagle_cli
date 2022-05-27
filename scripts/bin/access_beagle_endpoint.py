@@ -29,7 +29,7 @@ class AccessBeagleEndpoint:
 
 
   def get_file_ids(self, request_id):
-    url =  "%s/v0/fs/files/?page_size=1000&metadata=requestId:%s" % (self.API, request_id)
+    url =  "%s/v0/fs/files/?page_size=1000&metadata=igoRequestId:%s" % (self.API, request_id)
     data = self.run_url(url)
     file_ids = list()
     for result in data['results']:

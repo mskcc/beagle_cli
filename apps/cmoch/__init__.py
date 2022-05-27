@@ -7,42 +7,44 @@ import shutil
 import requests
 
 FLAG_TO_APPS = {
-    "msi": ("access legacy MSI", "microsatellite_instability"),
-    "cnv": ("access legacy CNV", "copy_number_variants"),
-    "sv": ("access legacy SV", "structural_variants"),
-    "snv": ("access legacy SNV", "small_variants"),
-    "bams": ("access legacy", "bam_qc"),
-    "nucleo": ("access nucleo", "bam_qc"),
+    "bams": ("Access CMO-CH", "bams"),
 }
 
-def access_commands(arguments, config):
-    print('Running ACCESS')
+
+def cmoch_commands(arguments, config):
+    print('Running CMOCH')
 
     request_id, sample_id, apps = get_arguments(arguments)
-    tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request_id
+    tags = '{"cmoSampleId":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request_id
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            operator_run = get_operator_run(app_name, app_version, tags, config)
+            operator_run = get_operator_run(
+                app_name, app_version, tags, config)
             if operator_run:
                 if arguments.get('--single-dir'):
                     if app == "bams":
-                        link_bams_to_single_dir(operator_run, app, request_id, sample_id, arguments, config)
+                        link_bams_to_single_dir(
+                            operator_run, app, request_id, sample_id, arguments, config)
                     else:
                         print("Apps other than bams not supported at this time")
                 else:
-                    link_app(operator_run, directory, request_id, sample_id, arguments, config)
+                    link_app(operator_run, directory, request_id,
+                             sample_id, arguments, config)
 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            operator_run = get_operator_run(app_name, app_version, tags, config)
+            operator_run = get_operator_run(
+                app_name, app_version, tags, config)
             if operator_run:
                 if(app == "bams"):
-                    link_bams_by_patient_id(operator_run, "bams", request_id, sample_id, arguments, config)
+                    link_bams_by_patient_id(
+                        operator_run, "bams", request_id, sample_id, arguments, config)
                 else:
                     link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
-                                                           config)
+                                                               config)
+
 
 def get_operator_run(app_name, app_version=None, tags=None, config=None):
     latest_operator_run = {
@@ -56,7 +58,8 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None):
         latest_operator_run["app_version"] = app_version
 
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
-                            headers={'Authorization': 'Bearer %s' % config['token']},
+                            headers={
+                                'Authorization': 'Bearer %s' % config['token']},
                             params=latest_operator_run)
 
     latest_runs = response.json()["results"]
@@ -67,6 +70,7 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None):
 
     return latest_runs[0]
 
+
 def get_arguments(arguments):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
@@ -74,7 +78,7 @@ def get_arguments(arguments):
     if request_id:
         request_id = request_id[0]
 
-    apps = [] # [(tag, version), ...]
+    apps = []  # [(tag, version), ...]
     for app in app_tags:
         r = app.split(":")
         if len(r) > 1:
@@ -97,6 +101,7 @@ def get_runs(operator_run_id, config):
 
     return response.json()["results"]
 
+
 def get_run_by_id(run_id, config):
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run_id),
                             headers={'Authorization': 'Bearer %s' % config['token']})
@@ -110,8 +115,10 @@ def get_files_by_run_id(run_id, config):
 
     return response.json()["outputs"]
 
+
 def get_file_path(file):
     return file["location"][7:]
+
 
 def link_app(operator_run, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or operator_run["app_version"]
@@ -126,7 +133,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config):
     if not runs:
         return
 
-    files = [] # (sample_id, /path/to/file)
+    files = []  # (sample_id, /path/to/file)
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         if should_delete:
@@ -134,13 +141,15 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config):
                 os.unlink(path / run["id"])
                 print((path / run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
+                print("could not delete symlink: {} ".format(
+                    path / run["id"]), file=sys.stderr)
         else:
             try:
                 os.symlink(run["output_directory"], path / run["id"])
                 print((path / run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+                print("could not create symlink from '{}' to '{}'".format(
+                    run["output_directory"], path / run["id"]), file=sys.stderr)
 
     try:
         os.unlink(path_without_version / "current")
@@ -164,7 +173,8 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
+        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(
+            run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
@@ -177,13 +187,15 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
                 os.unlink(sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
+                print("could not delete symlink: {} ".format(
+                    sample_version_path), file=sys.stderr)
         else:
             try:
                 os.symlink(run["output_directory"], sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+                print("could not create symlink from '{}' to '{}'".format(
+                    sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
 
         try:
             os.unlink(sample_path / "current")
@@ -195,6 +207,7 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     return "Completed"
 
+
 def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or operator_run["app_version"]
 
@@ -205,11 +218,12 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
     if not runs:
         return
 
-    files = [] # (sample_id, /path/to/file)
+    files = []  # (sample_id, /path/to/file)
 
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
-            files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
+            files = files + \
+                find_files_by_sample(file_group["value"], sample_id=sample_id)
 
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
@@ -225,7 +239,6 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
-
         sample_path = path
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
@@ -234,7 +247,8 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
             os.symlink(file_path, sample_version_path / file_name)
             print((sample_version_path / file_name).absolute(), file=sys.stdout)
         except Exception as e:
-            print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+            print("Could not create symlink from '{}' to '{}'".format(
+                sample_version_path / file_name, file_path), file=sys.stderr)
             continue
 
         try:
@@ -248,6 +262,7 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
             pass
 
     return "Completed"
+
 
 def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config):
     version = arguments.get("--dir-version") or operator_run["app_version"]
@@ -260,11 +275,12 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
     if not runs:
         return
 
-    files = [] # (sample_id, /path/to/file)
+    files = []  # (sample_id, /path/to/file)
 
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
-            files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
+            files = files + \
+                find_files_by_sample(file_group["value"], sample_id=sample_id)
 
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
@@ -280,7 +296,6 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
-
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
@@ -290,13 +305,15 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
                 shutil.rmtree(sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
+                print("could not delete folder: {} ".format(
+                    sample_version_path), file=sys.stderr)
         else:
             try:
                 os.symlink(file_path, sample_version_path / file_name)
                 print((sample_version_path / file_name).absolute(), file=sys.stdout)
             except Exception as e:
-                print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+                print("Could not create symlink from '{}' to '{}'".format(
+                    sample_version_path / file_name, file_path), file=sys.stderr)
                 continue
 
         try:
@@ -306,13 +323,15 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
 
         if not should_delete:
             try:
-                os.symlink(sample_version_path.absolute(), sample_path / "current")
+                os.symlink(sample_version_path.absolute(),
+                           sample_path / "current")
             except Exception as e:
                 pass
 
     return "Completed"
 
-def find_files_by_sample(file_group, sample_id = None):
+
+def find_files_by_sample(file_group, sample_id=None):
     def traverse(file_group):
         files = []
         if not file_group:
@@ -337,10 +356,10 @@ def find_files_by_sample(file_group, sample_id = None):
                 return find_files_by_sample(file_group["listing"], sample_id=file_group["basename"])
             # TODO pull patient id here
             elif file_group["class"] == "File":
-                secondary_files = [(sample_id, f) for f in file_group["secondaryFiles"]] if "secondaryFiles" in file_group else []
+                secondary_files = [(sample_id, f) for f in file_group["secondaryFiles"]
+                                   ] if "secondaryFiles" in file_group else []
                 return [(sample_id, file_group)] + secondary_files
 
         return []
 
     return traverse(file_group)
-
