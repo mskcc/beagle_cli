@@ -83,7 +83,7 @@ Usage:
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed]
+  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -353,20 +353,24 @@ def _get_latest_run_info_command(arguments, config):
     requestId = arguments.get('--request-id')
     completed = arguments.get('--completed')
     output_file = arguments.get('--output-file')
+    page_size = arguments.get('--page-size')
     info_keys = ['id', 'status', 'name', 'tags', 'message', 'app',
-                 'operator_run', 'created_date', 'finished_date', 'execution_id']
+                 'operator_run', 'created_date', 'finished_date', 'execution_id', 'output_metadata']
     file_keys = ['name', 'status', 'tags', 'message', 'id', 'execution_id']
     params = dict()
+    params['page_size'] = 1000
     if requestId:
-        params['requestId'] = requestId
+        params['request_ids'] = requestId
     if job_group:
         params['job_groups'] = job_group
     if jira_id:
         params['jira_id'] = jira_id
-    params['page_size'] = 1000000
+    if page_size: 
+        params['page_size'] = page_size
     params['full'] = True
     if completed:
         params['status'] = "COMPLETED"
+    
     # params['values_run'] = ['id', 'status', 'name', 'tags', 'message',
     #                        'app', 'operator_run', 'created_date', 'finished_date']
     url = urljoin(BEAGLE_ENDPOINT, API['run'])
@@ -414,7 +418,7 @@ def _get_runs_command(arguments, config):
 
     params = dict()
     if requestId:
-        params['requestId'] = requestId
+        params['request_ids'] = requestId
     if tags:
         params['tags'] = tags
     if job_groups:
