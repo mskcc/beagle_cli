@@ -37,7 +37,7 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed] [--page-size=<page_size>]
+  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed] [--page-size=<page_size>] [--metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
