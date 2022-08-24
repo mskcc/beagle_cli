@@ -25,6 +25,7 @@ from os.path import expanduser
 from urllib.parse import urljoin
 from datetime import datetime
 import traceback
+import csv 
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
@@ -368,6 +369,19 @@ def _get_latest_run_info_command(arguments, config):
     # setting / adjusting parameters 
     params['page_size'] = 1000
     params['full'] = True
+    # if a requestID is a txt file of multiple requests
+    if requestId[0].endswith(".txt"):
+        results = ''  
+        # open csv 
+        with open(requestId[0], newline='') as f:
+            reader = csv.reader(f, skipinitialspace=True)
+            # iterate over individual requests
+            for r in reader: 
+                arguments['--request-id'] = [r[0]]
+                # recursive call for individual request
+                results = results + _get_latest_run_info_command(arguments, config)[1:-1] + ','  
+        # final format and return 
+        return '[' + results[:-1] + ']'
     if requestId:
         params['request_ids'] = requestId
     if job_group:
@@ -383,8 +397,6 @@ def _get_latest_run_info_command(arguments, config):
     if completed:
         params['status'] = "COMPLETED"
     
-    # params['values_run'] = ['id', 'status', 'name', 'tags', 'message',
-    #                        'app', 'operator_run', 'created_date', 'finished_date']
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = response.json()
