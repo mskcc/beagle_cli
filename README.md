@@ -65,13 +65,13 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   ```
   beaglecli run submit-request --pipeline=argos --request-ids=ABCDE_1,ABCDE_2 --job-group-id=FGHIJK-LMNOP-QRSTUV-WXY --job-group-id=FGHIJK-LMNOP-QRSTUV-WXYZ
   ```
-- Return only the metadata info for a given request id from the run api
+- Return only the output metadata info for a given request id from the run api
   ```
-  run latest-info --request-id 10101_A --completed --metadata-only --max-pages
+  run latest-info --request-id 10101_A --completed --output-metadata-only --max-pages
   ```
-- Return only the metadata info for multiple request ids
+- Return only the output metadata info for multiple request ids
   ```
-  beaglecli run latest-info --request-id requests.txt --completed --metadata-only --max-pages
+  beaglecli run latest-info --request-id requests.txt --completed --output-metadata-only --max-pages
   ```
 Note: Use `requests.txt` as a template for providing a multiple request ids
 

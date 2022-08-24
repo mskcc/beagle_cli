@@ -84,7 +84,7 @@ Usage:
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--metadata-only] [--max-pages]
+  beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--output-metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -356,7 +356,7 @@ def _get_latest_run_info_command(arguments, config):
     completed = arguments.get('--completed')
     output_file = arguments.get('--output-file')
     page_size = arguments.get('--page-size')
-    metadata_only = arguments.get('--metadata-only')
+    metadata_only = arguments.get('--output-metadata-only')
     max_pages = arguments.get('--max-pages')
     info_keys = ['id', 'status', 'name', 'tags', 'message', 'app',
                  'operator_run', 'created_date', 'finished_date', 'execution_id', 'output_metadata']
