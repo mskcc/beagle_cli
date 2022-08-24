@@ -37,7 +37,7 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed] [--page-size=<page_size>] [--metadata-only] [--max-pages]
+  beaglecli run latest-info [--request-id=<request_id | request_ids.csv>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed] [--page-size=<page_size>] [--metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -65,6 +65,15 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   ```
   beaglecli run submit-request --pipeline=argos --request-ids=ABCDE_1,ABCDE_2 --job-group-id=FGHIJK-LMNOP-QRSTUV-WXY --job-group-id=FGHIJK-LMNOP-QRSTUV-WXYZ
   ```
+- Return only the metadata info for a given request id from the run api
+  ```
+  run latest-info --request-id 10101_A --completed --metadata-only --max-pages
+  ```
+- Return only the metadata info for multiple request ids
+  ```
+  beaglecli run latest-info --request-id requests.txt --completed --metadata-only --max-pages
+  ```
+Note: Use `requests.txt` as a template for providing a multiple request ids
 
 #### Troubleshooting
 
