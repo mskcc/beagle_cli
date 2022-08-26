@@ -61,9 +61,13 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None):
 
     latest_runs = response.json()["results"]
     if not latest_runs:
-        print("There are no completed operator runs for this request in the following app: %s:%s" %
-              (str(app_name), str(app_version)), file=sys.stderr)
-        return None
+        if "igoRequestId" in tags:
+            new_tag = tags.replace("igoRequestId", "requestId")
+            return get_operator_run(app_name, app_version, tags=new_tag, config=config)
+        else:
+            print("There are no completed operator runs for this request in the following app: %s:%s" %
+                  (str(app_name), str(app_version)), file=sys.stderr)
+            return None
 
     return latest_runs[0]
 
