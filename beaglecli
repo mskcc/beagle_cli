@@ -300,6 +300,7 @@ def _check_is_authenticated(config):
                                  'refresh': config.refresh})
         if response.status_code == 200:
             config.set('token', response.json()['access'])
+            config.set('refresh', response.json()['refresh'])
             return True
     return False
 
