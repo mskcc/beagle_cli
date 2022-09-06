@@ -371,9 +371,9 @@ def _get_latest_run_info_command(arguments, config):
     params['page_size'] = 1000
     params['full'] = True
     # if a requestID is a txt file of multiple requests
-    if requestId[0].endswith(".txt"):
         results = ''  
         # open csv 
+    if requestId and requestId[0].endswith(".txt"):
         with open(requestId[0], newline='') as f:
             reader = csv.reader(f, skipinitialspace=True)
             # iterate over individual requests
@@ -422,7 +422,10 @@ def _get_latest_run_info_command(arguments, config):
         for idx, single_run in enumerate(latest_runs): 
             latest_runs[idx] = single_run['output_metadata']
     response_json = json.dumps(latest_runs, indent=4)
-    if output_file:
+    if metadata_only and output_file:
+        print("Not writing to " + str(output_file) +
+              " as metadata only has been specified")
+    elif output_file:
         output_str = "redact(y/n)\t" + "\t".join(file_keys) + "\n"
         for single_run in latest_runs:
             output_str += "n"
