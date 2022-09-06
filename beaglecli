@@ -25,6 +25,7 @@ from os.path import expanduser
 from urllib.parse import urljoin
 from datetime import datetime
 import traceback
+import csv 
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
@@ -83,7 +84,7 @@ Usage:
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
   beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id>] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed]
+  beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--output-metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -349,28 +350,54 @@ def _get_latest_runs(run_dict):
 
 
 def _get_latest_run_info_command(arguments, config):
+    # getting params
     job_group = arguments.get('--job-group')
     jira_id = arguments.get('--jira-id')
     requestId = arguments.get('--request-id')
     completed = arguments.get('--completed')
     output_file = arguments.get('--output-file')
+    page_size = arguments.get('--page-size')
+    metadata_only = arguments.get('--output-metadata-only')
+    max_pages = arguments.get('--max-pages')
     info_keys = ['id', 'status', 'name', 'tags', 'message', 'app',
-                 'operator_run', 'created_date', 'finished_date', 'execution_id']
+                 'operator_run', 'created_date', 'finished_date', 'execution_id', 'output_metadata']
     file_keys = ['name', 'status', 'tags', 'message', 'id', 'execution_id']
     params = dict()
+    
+    # setting url 
+    url = urljoin(BEAGLE_ENDPOINT, API['run'])
+
+    # setting / adjusting parameters 
+    params['page_size'] = 1000
+    params['full'] = True
+    # if a requestID is a txt file of multiple requests
+        results = ''  
+        # open csv 
+    if requestId and requestId[0].endswith(".txt"):
+        with open(requestId[0], newline='') as f:
+            reader = csv.reader(f, skipinitialspace=True)
+            # iterate over individual requests
+            for r in reader: 
+                arguments['--request-id'] = [r[0]]
+                # recursive call for individual request
+                results = results + _get_latest_run_info_command(arguments, config)[1:-1] + ','  
+        # final format and return 
+        return '[' + results[:-1] + ']'
     if requestId:
-        params['requestId'] = requestId
+        params['request_ids'] = requestId
     if job_group:
         params['job_groups'] = job_group
     if jira_id:
         params['jira_id'] = jira_id
-    params['page_size'] = 1000000
-    params['full'] = True
+    if page_size: 
+        params['page_size'] = page_size
+    if max_pages and not page_size:
+        count_params = {'request_ids': params['request_ids'], 'count':True}
+        params['page_size'] = requests.get(url,
+                        headers={'Authorization': 'Bearer %s' % config.token}, params=count_params)
     if completed:
         params['status'] = "COMPLETED"
-    # params['values_run'] = ['id', 'status', 'name', 'tags', 'message',
-    #                        'app', 'operator_run', 'created_date', 'finished_date']
-    url = urljoin(BEAGLE_ENDPOINT, API['run'])
+    
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = response.json()
@@ -390,8 +417,15 @@ def _get_latest_run_info_command(arguments, config):
     latest_runs = []
     for single_app in run_list:
         latest_runs += _get_latest_runs(run_list[single_app])
+    # only return metadata 
+    if metadata_only:
+        for idx, single_run in enumerate(latest_runs): 
+            latest_runs[idx] = single_run['output_metadata']
     response_json = json.dumps(latest_runs, indent=4)
-    if output_file:
+    if metadata_only and output_file:
+        print("Not writing to " + str(output_file) +
+              " as metadata only has been specified")
+    elif output_file:
         output_str = "redact(y/n)\t" + "\t".join(file_keys) + "\n"
         for single_run in latest_runs:
             output_str += "n"
@@ -403,6 +437,7 @@ def _get_latest_run_info_command(arguments, config):
         with open(output_file_path, "w") as output_file_obj:
             output_file_obj.write(output_str)
         response_json = "Done! Output location: " + str(output_file_path)
+    
     return response_json
 
 
@@ -415,7 +450,7 @@ def _get_runs_command(arguments, config):
 
     params = dict()
     if requestId:
-        params['requestId'] = requestId
+        params['request_ids'] = requestId
     if tags:
         params['tags'] = tags
     if job_groups:
@@ -647,6 +682,10 @@ def _patch_file(arguments, config):
     if metadata_args:
         for item in metadata_args:
             k, v = item.split(':')
+            if v == "True":
+                v = True
+            if v == "False":
+                v = False
             metadata[k] = v
     body['metadata'] = json.dumps(metadata)
     response = requests.patch(urljoin(BEAGLE_ENDPOINT, API['files'] + '%s/' % file_id), data=body,
