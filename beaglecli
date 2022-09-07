@@ -385,6 +385,7 @@ def _get_latest_run_info_command(arguments, config):
         return '[' + results[:-1] + ']'
     if requestId:
         params['request_ids'] = requestId
+    print(requestId[0])
     if job_group:
         params['job_groups'] = job_group
     if jira_id:
@@ -401,6 +402,16 @@ def _get_latest_run_info_command(arguments, config):
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = response.json()
+    if not response.json(): 
+        with open('missing.txt', 'a') as f:
+            f.write(requestId[0])
+            f.write('\n')
+        f.close()
+        return('')
+    with open('present.txt', 'a') as f:
+            f.write(requestId[0])
+            f.write('\n')
+            f.close()
     run_list = {}
     for single_run in response_json['results']:
         run_data = {}
@@ -883,6 +894,7 @@ if __name__ == '__main__':
     authenticate_command(config)
     arguments = docopt(USAGE, version='Beagle API 0.2.0')
     result = command(arguments, config)
+    sys.exit()
     print(result)
     if arguments.get('list'):
         while config.next or config.prev:
