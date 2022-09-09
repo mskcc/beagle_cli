@@ -371,7 +371,7 @@ def _get_latest_run_info_command(arguments, config):
     params['page_size'] = 1000
     params['full'] = True
     # if a requestID is a txt file of multiple requests
-        results = ''  
+    results = ''  
         # open csv 
     if requestId and requestId[0].endswith(".txt"):
         with open(requestId[0], newline='') as f:
