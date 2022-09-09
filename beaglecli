@@ -71,7 +71,7 @@ Usage:
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
-  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>]
+  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]...
   beaglecli files delete --file-id=<file_id>...
   beaglecli sample create <sample-id>
   beaglecli sample list [--sample-id=<sample-id>]
@@ -371,7 +371,7 @@ def _get_latest_run_info_command(arguments, config):
     params['page_size'] = 1000
     params['full'] = True
     # if a requestID is a txt file of multiple requests
-        results = ''  
+    results = ''  
         # open csv 
     if requestId and requestId[0].endswith(".txt"):
         with open(requestId[0], newline='') as f:
@@ -512,12 +512,14 @@ def _list_files(arguments, config):
     file_name = arguments.get('--file-name')
     filename_regex = arguments.get('--filename-regex')
     page_size = arguments.get('--page-size')
+    file_type = arguments.get('--file-type')
     params = dict()
     params['path'] = paths
     params['metadata'] = metadata
     params['file_group'] = file_group
     params['file_name'] = file_name
     params['filename_regex'] = filename_regex
+    params['file_type'] = file_type
     if page_size:
         params['page_size'] = page_size
     response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={
