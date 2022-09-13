@@ -14,6 +14,7 @@ $ beaglecli files list --metadata=igoRequestId:09324_C
 
 """
 from cmath import sin
+from ensurepip import version
 import os
 import sys
 from urllib import response
@@ -25,7 +26,7 @@ from os.path import expanduser
 from urllib.parse import urljoin
 from datetime import datetime
 import traceback
-import csv 
+import csv
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
@@ -46,10 +47,10 @@ CONFIG_TEMPLATE = {
 
 
 API = {
-    "auth": "api-token-auth/",
-    "verify": "api-token-verify/",
-    "refresh": "api-token-refresh/",
-    "storage": "v0/fs/storage/",
+    "auth": 'api-token-auth/',
+    "verify": 'api-token-verify/',
+    "refresh": 'api-token-refresh/',
+    "storage": 'v0/fs/storage/',
     "file-types": 'v0/fs/file-types/',
     "pipelines": 'v0/run/pipelines/',
     "files": '/v0/fs/files/',
@@ -83,8 +84,8 @@ Usage:
   beaglecli file-group create <file_group_name> <storage>
   beaglecli file-group list [--page-size=<page_size>]
   beaglecli etl delete --job-id=<job_id>...
-  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
-  beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--output-metadata-only] [--max-pages]
+  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--apps=<apps>]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
+  beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--apps=<apps>]... [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--output-metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
   beaglecli run submit-runs --pipelines=<pipeline>... --versions=<versions>...[--run-file=<run_file>] [--run-ids=<run_ids>]... [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -349,10 +350,73 @@ def _get_latest_runs(run_dict):
     return run_list
 
 
+def _get_apps_dict():
+    url = urljoin(BEAGLE_ENDPOINT, API['pipelines'])
+    params = dict()
+    params['page_size'] = 1000000
+    response = requests.get(url, headers={
+                            'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'}, params=params)
+    app_dict = {}
+    if response.ok:
+        response_json = response.json()
+        if "results" in response_json:
+            result_list = response_json["results"]
+            name_set = set()
+            duplicate_set = set()
+            for single_pipeline in result_list:
+                name = single_pipeline["name"]
+                if name in name_set:
+                    duplicate_set.add(name)
+                name_set.add(name)
+            for single_pipeline in result_list:
+                name = single_pipeline["name"]
+                version = single_pipeline["version"]
+                id = single_pipeline["id"]
+                key_name = ""
+                if name in duplicate_set:
+                    key_name = str(name) + ":"+str(version)
+                else:
+                    key_name = str(name)
+                app_dict[key_name] = id
+            return app_dict
+        else:
+            print("Error: beagle returned an empty")
+            exit(1)
+    else:
+        print("ERROR: Could not retrieve app list")
+        exit(1)
+
+
+def _get_app_uuid(app_names):
+    app_dict = _get_apps_dict()
+    keys = app_dict.keys()
+    if not keys:
+        print("Error: Could not retrieve pipeline info")
+        exit(1)
+    uuid_list = []
+    for single_name in app_names:
+        if single_name not in keys:
+            matches = (
+                single_key for single_key in keys if single_name in single_key)
+            print("Could not find the app " + str(single_name) + " in beagle")
+            if matches:
+                print("Here are possible matches:")
+                print(list(matches))
+            exit(1)
+        else:
+            uuid_list.append(app_dict[single_name])
+    return uuid_list
+
+
+def _get_request_Id(run_data):
+    return run_data.get("tags", {}).get("igoRequestId", "None")
+
+
 def _get_latest_run_info_command(arguments, config):
     # getting params
     job_group = arguments.get('--job-group')
     jira_id = arguments.get('--jira-id')
+    apps = arguments.get('--apps')
     requestId = arguments.get('--request-id')
     completed = arguments.get('--completed')
     output_file = arguments.get('--output-file')
@@ -363,41 +427,42 @@ def _get_latest_run_info_command(arguments, config):
                  'operator_run', 'created_date', 'finished_date', 'execution_id', 'output_metadata']
     file_keys = ['name', 'status', 'tags', 'message', 'id', 'execution_id']
     params = dict()
-    
-    # setting url 
+
+    # setting url
     url = urljoin(BEAGLE_ENDPOINT, API['run'])
 
-    # setting / adjusting parameters 
+    # setting / adjusting parameters
     params['page_size'] = 1000
     params['full'] = True
-    # if a requestID is a txt file of multiple requests
-        results = ''  
-        # open csv 
-    if requestId and requestId[0].endswith(".txt"):
-        with open(requestId[0], newline='') as f:
-            reader = csv.reader(f, skipinitialspace=True)
-            # iterate over individual requests
-            for r in reader: 
-                arguments['--request-id'] = [r[0]]
-                # recursive call for individual request
-                results = results + _get_latest_run_info_command(arguments, config)[1:-1] + ','  
-        # final format and return 
-        return '[' + results[:-1] + ']'
+    # open csv
     if requestId:
-        params['request_ids'] = requestId
+        if requestId[0].endswith(".txt"):
+            with open(requestId[0], newline='') as f:
+                reader = csv.reader(f, skipinitialspace=True)
+                requestIdList = []
+                # iterate over individual requests
+                for r in reader:
+                    if r:
+                        requestIdList.append(r[0])
+            params['request_ids'] = requestIdList
+        else:
+            params['request_ids'] = requestId
+    if apps:
+        uuid_list = _get_app_uuid(apps)
+        params['apps'] = uuid_list
     if job_group:
         params['job_groups'] = job_group
     if jira_id:
         params['jira_id'] = jira_id
-    if page_size: 
+    if page_size:
         params['page_size'] = page_size
     if max_pages and not page_size:
-        count_params = {'request_ids': params['request_ids'], 'count':True}
+        count_params = {'request_ids': params['request_ids'], 'count': True}
         params['page_size'] = requests.get(url,
-                        headers={'Authorization': 'Bearer %s' % config.token}, params=count_params)
+                                           headers={'Authorization': 'Bearer %s' % config.token}, params=count_params)
     if completed:
         params['status'] = "COMPLETED"
-    
+
     response = requests.get(url,
                             headers={'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = response.json()
@@ -408,18 +473,20 @@ def _get_latest_run_info_command(arguments, config):
             if single_key in single_run:
                 run_data[single_key] = single_run[single_key]
         app_name = run_data['app']
+        request_id = _get_request_Id(run_data)
         operator_run = run_data['operator_run']
-        if app_name not in run_list:
-            run_list[app_name] = {}
-        if operator_run not in run_list[app_name]:
-            run_list[app_name][operator_run] = []
-        run_list[app_name][operator_run].append(run_data)
+        run_type = "{}:{}".format(app_name, request_id)
+        if run_type not in run_list:
+            run_list[run_type] = {}
+        if operator_run not in run_list[run_type]:
+            run_list[run_type][operator_run] = []
+        run_list[run_type][operator_run].append(run_data)
     latest_runs = []
     for single_app in run_list:
         latest_runs += _get_latest_runs(run_list[single_app])
-    # only return metadata 
+    # only return metadata
     if metadata_only:
-        for idx, single_run in enumerate(latest_runs): 
+        for idx, single_run in enumerate(latest_runs):
             latest_runs[idx] = single_run['output_metadata']
     response_json = json.dumps(latest_runs, indent=4)
     if metadata_only and output_file:
@@ -437,7 +504,7 @@ def _get_latest_run_info_command(arguments, config):
         with open(output_file_path, "w") as output_file_obj:
             output_file_obj.write(output_str)
         response_json = "Done! Output location: " + str(output_file_path)
-    
+
     return response_json
 
 
@@ -447,10 +514,14 @@ def _get_runs_command(arguments, config):
     tags = arguments.get('--tags')
     job_groups = arguments.get('--job-groups')
     jira_ids = arguments.get('--jira-ids')
+    apps = arguments.get('--apps')
 
     params = dict()
     if requestId:
         params['request_ids'] = requestId
+    if apps:
+        uuid_list = _get_app_uuid(apps)
+        params['apps'] = uuid_list
     if tags:
         params['tags'] = tags
     if job_groups:
@@ -851,7 +922,6 @@ def _submit_operator_runs(arguments, config):
     if for_each:
         body['for_each'] = for_each
     url = urljoin(BEAGLE_ENDPOINT, API['run-operator-runs'])
-    print(body)
     response = requests.post(url, data=json.dumps(body),
                              headers={'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'})
     response_json = json.dumps(response.json(), indent=4)
