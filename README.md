@@ -73,6 +73,10 @@ To access other endpoints, export the environment variable `BEAGLE_ENDPOINT`.
   ```
   beaglecli run latest-info --request-id requests.txt --completed --output-metadata-only --max-pages
   ```
+- Return and clean output meatadata for a given request id from files api
+  ```
+  beaglecli files list --metadata=igoRequestId:13167_C  --file-type fastq --all | python3 clean_up.py
+  ```
 Note: Use `requests.txt` as a template for providing a multiple request ids
 
 #### Troubleshooting

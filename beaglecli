@@ -43,6 +43,7 @@ CONFIG_TEMPLATE = {
     'refresh': '',
     'next': None,
     'prev': None,
+    'count': None
 }
 
 
@@ -72,19 +73,19 @@ Usage:
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
-  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]...
+  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]... [--all]...
   beaglecli files delete --file-id=<file_id>...
   beaglecli sample create <sample-id>
-  beaglecli sample list [--sample-id=<sample-id>]
+  beaglecli sample list [--sample-id=<sample-id>] [--all]...
   beaglecli sample redact <sample-id> [--value=<redact>]
   beaglecli storage create <storage_name>
-  beaglecli storage list
+  beaglecli storage list [--all]...
   beaglecli file-types create <file_type>
   beaglecli file-types list
   beaglecli file-group create <file_group_name> <storage>
-  beaglecli file-group list [--page-size=<page_size>]
+  beaglecli file-group list [--page-size=<page_size>] [--all]...
   beaglecli etl delete --job-id=<job_id>...
-  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--apps="apps"]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]...
+  beaglecli run list [--page-size=<page_size>] [--request-id=<request_id>]... [--tags=<tags>]... [--apps="apps"]... [--job-groups=<job_groups>]... [--jira-ids=<jira_ids>]... [--all]...
   beaglecli run latest-info [--request-id=<request_id | request_ids.csv> ] [--job-group=<job_group>] [--apps="apps"]... [--jira-id=<jira_id>] [--output-file=<output_file>] [--completed][--page-size=<page_size>] [--output-metadata-only] [--max-pages]
   beaglecli run get <run_id>
   beaglecli run submit-request --pipeline=<pipeline> [--request-ids=<request_ids>] [--job-group-id=<job_group_id>] [--for-each=<True or False>]
@@ -110,11 +111,12 @@ CONFIG_LOCATION = os.path.join(expanduser("~"), '.beagle.conf')
 
 class Config(object):
 
-    def __init__(self, token, refresh, next, prev):
+    def __init__(self, token, refresh, next, prev, count):
         self.token = token
         self.refresh = refresh
         self.next = next
         self.prev = prev
+        self.count = count
 
     @classmethod
     def load(cls):
@@ -123,7 +125,7 @@ class Config(object):
                 config = cls(**json.load(config))
         else:
             with open(CONFIG_LOCATION, 'w') as config:
-                config = cls('', '', None, None)
+                config = cls('', '', None, None, None)
                 config.dump()
         return config
 
@@ -134,10 +136,10 @@ class Config(object):
     def dump(self):
         with open(CONFIG_LOCATION, 'w') as f:
             json.dump({'token': self.token, 'refresh': self.refresh,
-                      'next': self.next, 'prev': self.prev}, f)
+                      'next': self.next, 'prev': self.prev, 'count':self.count}, f)
 
     def __repr__(self):
-        return 'token: %s, next: %s, prev: %s' % (self.token, self.next, self.prev)
+        return 'token: %s, next: %s, prev: %s, count: %s' % (self.token, self.next, self.prev, self.count)
 
 
 # Commands
@@ -613,6 +615,7 @@ def _list_sample(arguments, config):
 def _set_next_and_prev(config, value):
     config.set('prev', value.get('previous'))
     config.set('next', value.get('next'))
+    config.set('count', value.get('count'))
 
 
 def next(config):
@@ -952,11 +955,14 @@ def _redact_sample(arguments, config):
     response_json = json.dumps(response.json(), indent=4)
     return response_json
 
-
 if __name__ == '__main__':
     config = Config.load()
     authenticate_command(config)
     arguments = docopt(USAGE, version='Beagle API 0.2.0')
+    # the '--all' flag controls whether '--page-size=count' to return all results for a query 
+    # list will exit correclty since using querying with '--page-size=count' ensures 'next' and 'prev' are 'null' 
+    if arguments.get('--all'):
+            arguments['--page-size'] = config.count 
     result = command(arguments, config)
     print(result)
     if arguments.get('list'):
