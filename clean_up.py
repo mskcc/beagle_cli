@@ -62,12 +62,22 @@ def _clean_json(data):
     df = df.drop(columns=bf_dict)
     df = pd.concat([df, normalized_df], axis=1)
     df = df.drop_duplicates()
-    return df 
+    return df
 
 def _write_output(data, out_data):
     out_name = data['results'][0]['metadata']['igoRequestId']
+    out_data = out_data.loc[:,~out_data.columns.duplicated()].copy()
     out_data.to_csv('{out_name}.csv'.format(out_name=out_name), index=False)
-
+    test_json_names = ['igoId', 'cmoSampleName', 'sampleName', 'cmoSampleClass', 'cmoPatientId', 'investigatorSampleId', 'oncoTreeCode', 'tumorOrNormal', 'tissueLocation', 'specimenType', 'sampleOrigin', 'preservation', 'collectionYear', 'sex', 'species', 'tubeId', 'cfDNA2dBarcode', 'baitSet', 'qcReports', 'barcodeId', 'barcodeIndex', 'libraryIgoId', 'libraryVolume', 'libraryConcentrationNgul', 'dnaInputNg', 'captureConcentrationNm', 'captureInputNg', 'captureName']
+    
+    out_data['specimenType'] = None 
+    out_data['qcReports'] = [[] for _ in range(len(out_data))]
+    out_data = out_data.rename(columns={'oncotreeCode': 'oncoTreeCode', 'igoRequestId': 'igoId', 'sampleClass':'cmoSampleClass'})
+    out_data = out_data[test_json_names]
+    #sys.stdin = open("/dev/tty")
+    out_data = out_data.to_dict('records')
+    with open('{out_name}.json'.format(out_name=out_name), 'w') as fout:
+        json.dump(out_data , fout, indent=4)
 if __name__ == '__main__':
     # get args
     data = _collect_args()
@@ -75,3 +85,4 @@ if __name__ == '__main__':
     out_data = _clean_json(data)
     # write data out
     _write_output(data, out_data)
+    
