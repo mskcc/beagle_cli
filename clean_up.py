@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from importlib.metadata import metadata
 import json
 import argparse
 import sys 
@@ -22,12 +23,11 @@ def _collect_args():
         nargs='?',
         type=str,
         help='Input string containing a valid JSON.')
-    # Parse the argument
     args = parser.parse_args()
+    # load json
     data = args.json or args.input_file.read()
     datain=json.loads(data)
-    #sys.stdin = open("/dev/tty")
-    return datain 
+    return datain, args
 
 def _read_column_control(): 
     # read in column_names for check 
@@ -50,11 +50,13 @@ def _clean_json(data):
     # check all columns are present
     if not set(c_names).issubset(df.columns): 
         ValueError('missing column names expected in file metadata. Format has changed, or JSON is badly formed.')
-    # should do check for all columns 
-    df = df.drop('R', axis=1)
-    df['flowCellLanes'] = [','.join(map(str, l)) for l in df['flowCellLanes']]
+    # rename some columns
+    df = df.rename(columns={'oncotreeCode': 'oncoTreeCode', 'igoRequestId': 'igoId', 'sampleClass':'cmoSampleClass'})
+    # subset to important columns
+    df = df[c_names]
+    # normalize columns 
     bf_list = [i for i in df.columns if isinstance(df[i][0],list)]
-    cleaned_columns = [df[column].apply(lambda x: x[0]) for column in bf_list]
+    cleaned_columns = [df[column].apply(lambda x: x[0] if isinstance(x, list) else x) for column in bf_list]
     df[bf_list] = pd.concat(cleaned_columns, axis=1)
     bf_dict = [i for i in df.columns if isinstance(df[i][0],dict)]
     normalized_columns = [pd.json_normalize(df[column]) for column in bf_dict]
@@ -65,24 +67,22 @@ def _clean_json(data):
     return df
 
 def _write_output(data, out_data):
+    # csv
     out_name = data['results'][0]['metadata']['igoRequestId']
     out_data = out_data.loc[:,~out_data.columns.duplicated()].copy()
     out_data.to_csv('{out_name}.csv'.format(out_name=out_name), index=False)
-    test_json_names = ['igoId', 'cmoSampleName', 'sampleName', 'cmoSampleClass', 'cmoPatientId', 'investigatorSampleId', 'oncoTreeCode', 'tumorOrNormal', 'tissueLocation', 'specimenType', 'sampleOrigin', 'preservation', 'collectionYear', 'sex', 'species', 'tubeId', 'cfDNA2dBarcode', 'baitSet', 'qcReports', 'barcodeId', 'barcodeIndex', 'libraryIgoId', 'libraryVolume', 'libraryConcentrationNgul', 'dnaInputNg', 'captureConcentrationNm', 'captureInputNg', 'captureName']
-    
-    out_data['specimenType'] = None 
-    out_data['qcReports'] = [[] for _ in range(len(out_data))]
-    out_data = out_data.rename(columns={'oncotreeCode': 'oncoTreeCode', 'igoRequestId': 'igoId', 'sampleClass':'cmoSampleClass'})
-    out_data = out_data[test_json_names]
-    #sys.stdin = open("/dev/tty")
+    # json 
     out_data = out_data.to_dict('records')
     with open('{out_name}.json'.format(out_name=out_name), 'w') as fout:
         json.dump(out_data , fout, indent=4)
+
+
+
 if __name__ == '__main__':
     # get args
-    data = _collect_args()
-    # clean json 
+    data, args = _collect_args()
+    # clean json
     out_data = _clean_json(data)
-    # write data out
+    # write out 
     _write_output(data, out_data)
     
