@@ -1,42 +1,39 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from importlib.metadata import metadata
 import json
-import argparse
-import sys 
 import pandas as pd 
-import csv
+from collections import defaultdict
+from urllib.parse import urljoin
+from pathlib import Path
 
+C_NAMES = [
+    "igoRequestId",
+    "cmoSampleName",
+    "sampleName",
+    "sampleClass",
+    "cmoPatientId",
+    "investigatorSampleId",
+    "oncotreeCode",
+    "tumorOrNormal",
+    "tissueLocation",
+    "sampleOrigin",
+    "preservation",
+    "collectionYear",
+    "sex",
+    "species",
+    "tubeId",
+    "cfDNA2dBarcode",
+    "baitSet",
+    "qcReports",
+    "barcodeId",
+    "barcodeIndex",
+    "libraryIgoId",
+    "libraryVolume",
+    "libraryConcentrationNgul",
+    "dnaInputNg",
+    "captureConcentrationNm",
+    "captureInputNg",
+    "captureName"
+]
 
-def _collect_args(): 
-    # Create the parser
-    parser = argparse.ArgumentParser()
-    # Add an argument group 
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        '--input-file', '-i',
-        type=argparse.FileType('r'),
-        default=sys.stdin,
-        help='Input file name containing a valid JSON.')
-    group.add_argument(
-        'json',
-        nargs='?',
-        type=str,
-        help='Input string containing a valid JSON.')
-    args = parser.parse_args()
-    # load json
-    data = args.json or args.input_file.read()
-    datain=json.loads(data)
-    return datain, args
-
-def _read_column_control(): 
-    # read in column_names for check 
-    with open('column_names.txt', newline='') as f:
-        reader = csv.reader(f)
-        c_names = [] 
-        for name in reader: 
-            c_names.append(name[0])
-    return c_names 
 
 def _clean_json(data):
     # Iterating through the json
@@ -46,14 +43,11 @@ def _clean_json(data):
     for i in range(0,len(data["results"])):
         results.append(data['results'][i]['metadata']) 
     df = pd.DataFrame(results)
-    c_names = _read_column_control() 
     # check all columns are present
-    if not set(c_names).issubset(df.columns): 
+    if not set(C_NAMES).issubset(df.columns): 
         ValueError('missing column names expected in file metadata. Format has changed, or JSON is badly formed.')
-    # rename some columns
-    df = df.rename(columns={'oncotreeCode': 'oncoTreeCode', 'igoRequestId': 'igoId', 'sampleClass':'cmoSampleClass'})
     # subset to important columns
-    df = df[c_names]
+    df = df[C_NAMES]
     # normalize columns 
     bf_list = [i for i in df.columns if isinstance(df[i][0],list)]
     cleaned_columns = [df[column].apply(lambda x: x[0] if isinstance(x, list) else x) for column in bf_list]
@@ -78,11 +72,11 @@ def _write_output(data, out_data):
 
 
 
-if __name__ == '__main__':
+def clean_json_comands(results):
     # get args
-    data, args = _collect_args()
+    datain=json.loads(results)
     # clean json
-    out_data = _clean_json(data)
+    dataout = _clean_json(datain)
     # write out 
-    _write_output(data, out_data)
+    _write_output(datain, dataout)
     
