@@ -7,52 +7,55 @@ import shutil
 import requests
 
 FLAG_TO_APPS = {
-    "bams": ("Access CMO-CH", "bams"),
+    "bams": ("cmo-ch nucleo", "bams"),
 }
 
 
 def cmoch_commands(arguments, config):
     print('Running CMOCH')
 
-    request_id, sample_id, apps = get_arguments(arguments)
+    request_id, sample_id, apps, show_all_runs = get_arguments(arguments)
     tags = '{"cmoSampleId":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request_id
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
             operator_run = get_operator_run(
-                app_name, app_version, tags, config)
+                app_name, app_version, tags, config, show_all_runs)
             if operator_run:
                 if arguments.get('--single-dir'):
                     if app == "bams":
                         link_bams_to_single_dir(
-                            operator_run, app, request_id, sample_id, arguments, config)
+                            operator_run, app, request_id, sample_id, arguments, config, show_all_runs)
                     else:
                         print("Apps other than bams not supported at this time")
                 else:
                     link_app(operator_run, directory, request_id,
-                             sample_id, arguments, config)
+                             sample_id, arguments, config, show_all_runs)
 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
             operator_run = get_operator_run(
-                app_name, app_version, tags, config)
+                app_name, app_version, tags, config, show_all_runs)
             if operator_run:
                 if(app == "bams"):
                     link_bams_by_patient_id(
-                        operator_run, "bams", request_id, sample_id, arguments, config)
+                        operator_run, "bams", request_id, sample_id, arguments, config, show_all_runs)
                 else:
                     link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
-                                                               config)
+                                                               config, show_all_runs)
 
 
-def get_operator_run(app_name, app_version=None, tags=None, config=None):
+def get_operator_run(app_name, app_version=None, tags=None, config=None, show_all_runs=False):
     latest_operator_run = {
         "tags": tags,
         "status": "COMPLETED",
         "page_size": 1,
         "app_name": app_name
     }
+
+    if show_all_runs:
+        latest_operator_run.pop("status")
 
     if app_version:
         latest_operator_run["app_version"] = app_version
@@ -75,6 +78,7 @@ def get_arguments(arguments):
     request_id = arguments.get('--request-id')
     sample_id = arguments.get('--sample-id')
     app_tags = arguments.get('--apps')
+    show_all_runs = arguments.get('--all-runs') or False
     if request_id:
         request_id = request_id[0]
 
@@ -86,15 +90,18 @@ def get_arguments(arguments):
         else:
             apps.append((r[0], None))
 
-    return request_id, sample_id, apps
+    return request_id, sample_id, apps, show_all_runs
 
 
-def get_runs(operator_run_id, config):
+def get_runs(operator_run_id, config, show_all_runs):
     run_params = {
         "operator_run": operator_run_id,
         "page_size": 1000,
         "status": "COMPLETED"
     }
+
+    if show_all_runs:
+        run_params.pop("status")
 
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
                             headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
@@ -120,7 +127,7 @@ def get_file_path(file):
     return file["location"][7:]
 
 
-def link_app(operator_run, directory, request_id, sample_id, arguments, config):
+def link_app(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
     version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
@@ -129,7 +136,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config):
     path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
-    runs = get_runs(operator_run["id"], config)
+    runs = get_runs(operator_run["id"], config, show_all_runs)
     if not runs:
         return
 
@@ -161,13 +168,13 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config):
     return "Completed"
 
 
-def link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config):
+def link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
     version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    runs = get_runs(operator_run["id"], config)
+    runs = get_runs(operator_run["id"], config, show_all_runs)
     if not runs:
         return
 
@@ -208,12 +215,12 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
     return "Completed"
 
 
-def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, arguments, config):
+def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
     version = arguments.get("--dir-version") or operator_run["app_version"]
 
     path = Path("./") / directory / ("Project_" + request_id)
 
-    runs = get_runs(operator_run["id"], config)
+    runs = get_runs(operator_run["id"], config, show_all_runs)
 
     if not runs:
         return
@@ -264,13 +271,13 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
     return "Completed"
 
 
-def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config):
+def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
     version = arguments.get("--dir-version") or operator_run["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    runs = get_runs(operator_run["id"], config)
+    runs = get_runs(operator_run["id"], config, show_all_runs)
 
     if not runs:
         return
