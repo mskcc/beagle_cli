@@ -8,6 +8,8 @@ import requests
 
 FLAG_TO_APPS = {
     "bams": ("cmo-ch nucleo", "bams"),
+    "qc": ("CMO-CH QC", "quality_control"),
+    "qc_agg": ("CMO-CH QC Agg", "quality_control_aggregate")
 }
 
 
@@ -180,8 +182,12 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(
-            run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
+        if "cmoSampleIds" in run["tags"].keys(): 
+            cmo_id = "cmoSampleIds"
+        else: 
+            cmo_id = "cmoSampleId"
+        sample_id = run["tags"][cmo_id][0] if isinstance(
+            run["tags"][cmo_id], list) else run["tags"][cmo_id]
         a, b, _ = sample_id.split("-", 2)
         patient_id = "-".join([a, b])
 
