@@ -73,7 +73,7 @@ Usage:
   beaglecli files create <file_path> <file_type> <file_group_id> [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files update <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata-path=<metadata_path>] [--size=<size>]
   beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
-  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]... [--all]... [--packaged]...
+  beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]... [--all]... [--packaged]... [--force]...
   beaglecli files delete --file-id=<file_id>...
   beaglecli sample create <sample-id>
   beaglecli sample list [--sample-id=<sample-id>]
@@ -602,7 +602,7 @@ def _list_files(arguments, config):
                             'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
     if packaged:
-        clean_json_comands(response_json)
+        clean_json_comands(response_json, arguments)
     _set_next_and_prev(config, response.json())
     return response_json
 
