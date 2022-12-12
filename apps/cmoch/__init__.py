@@ -182,16 +182,18 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        if "cmoSampleIds" in run["tags"].keys(): 
-            cmo_id = "cmoSampleIds"
-        else: 
-            cmo_id = "cmoSampleId"
-        sample_id = run["tags"][cmo_id][0] if isinstance(
-            run["tags"][cmo_id], list) else run["tags"][cmo_id]
-        a, b, _ = sample_id.split("-", 2)
-        patient_id = "-".join([a, b])
-
-        sample_path = path / patient_id / sample_id
+        if operator_run['app_name'] == 'CMO-CH QC Agg':
+            sample_path = path / request_id
+        else:
+            if "cmoSampleIds" in run["tags"].keys(): 
+                cmo_id = "cmoSampleIds"
+            else: 
+                cmo_id = "cmoSampleId"
+            sample_id = run["tags"][cmo_id][0] if isinstance(
+                run["tags"][cmo_id], list) else run["tags"][cmo_id]
+            a, b, _ = sample_id.split("-", 2)
+            patient_id = "-".join([a, b])
+            sample_path = path / patient_id / sample_id
         sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
         sample_version_path = sample_path / version
 
