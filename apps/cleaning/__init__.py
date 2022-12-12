@@ -3,6 +3,7 @@ import pandas as pd
 from collections import defaultdict
 from urllib.parse import urljoin
 from pathlib import Path
+import warnings
 
 C_NAMES = [
     "igoRequestId",
@@ -35,7 +36,8 @@ C_NAMES = [
 ]
 
 
-def _clean_json(data):
+def _clean_json(data, arguments):
+    force = arguments.get('--force')
     # Iterating through the json
     # list
     # should do other check for format changes 
@@ -43,11 +45,19 @@ def _clean_json(data):
     for i in range(0,len(data["results"])):
         results.append(data['results'][i]['metadata']) 
     df = pd.DataFrame(results)
+    # subset to important columns
     # check all columns are present
     if not set(C_NAMES).issubset(df.columns): 
-        ValueError('missing column names expected in file metadata. Format has changed, or JSON is badly formed.')
-    # subset to important columns
-    df = df[C_NAMES]
+        missing_columns = set(C_NAMES) - set(df.columns)
+        present_columns = set(df.columns) - set(C_NAMES)
+        if force: 
+            # warn of missing 
+            warnings.warn('missing columns: {missing_columns}, which are expect in file metadata. Metadata may be malformed, or format has changed in beagle.'.format(missing_columns = missing_columns))
+            df = df[present_columns]
+        else:
+            raise Exception('missing columns: {missing_columns} which are expect in file metadata. Metadata may be malformed, or format has changed in beagle. Use `--force` option if missing columns are acceptable.'.format(missing_columns = missing_columns))
+    else: 
+        df = df[C_NAMES]
     # normalize columns 
     bf_list = [i for i in df.columns if isinstance(df[i][0],list)]
     cleaned_columns = [df[column].apply(lambda x: x[0] if isinstance(x, list) else x) for column in bf_list]
@@ -72,11 +82,11 @@ def _write_output(data, out_data):
 
 
 
-def clean_json_comands(results):
+def clean_json_comands(results, arguments):
     # get args
     datain=json.loads(results)
     # clean json
-    dataout = _clean_json(datain)
+    dataout = _clean_json(datain, arguments)
     # write out 
     _write_output(datain, dataout)
     
