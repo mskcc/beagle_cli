@@ -630,9 +630,10 @@ def _list_files(arguments, config):
     params['filename_regex'] = filename_regex
     params['file_type'] = file_type
     if all_pages:
-        count_params = params 
-        count_params['count'] = True 
-        params['page_size'] = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={'Authorization': 'Bearer %s' % config.token}, params=count_params).json()['count']
+        count_params = params
+        count_params['count'] = True
+        params['page_size'] = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={
+                                           'Authorization': 'Bearer %s' % config.token}, params=count_params).json()['count']
     response = requests.get(urljoin(BEAGLE_ENDPOINT, API['files']), headers={
                             'Authorization': 'Bearer %s' % config.token}, params=params)
     response_json = json.dumps(response.json(), indent=4)
@@ -1001,6 +1002,7 @@ def _redact_sample(arguments, config):
                               headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
 
 if __name__ == '__main__':
     config = Config.load()
