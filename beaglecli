@@ -776,7 +776,11 @@ def _update_cache(arguments, config):
             if os.path.exists(cwl_path):
                 cache_command = "module load singularity/3.7.1; docker_extract.py -s {} {}".format(
                     cache_path, cwl_path)
-                subprocess.check_output(cache_command, shell=True)
+                try:
+                    subprocess.check_output(cache_command, shell=True)
+                except:
+                    print("Malformed CWL: CWL might not be valid: {}".format(
+                        current_cwl_app))
             else:
                 print("Malformed pipeline: Could not find cwl: {} in {} version {}".format(
                     cwl, repo, version))
