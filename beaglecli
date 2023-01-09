@@ -27,6 +27,10 @@ from urllib.parse import urljoin
 from datetime import datetime
 import traceback
 import csv
+import git
+import subprocess
+import re
+import tempfile
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
@@ -754,7 +758,20 @@ def _create_sample(arguments, config):
 def _update_cache(arguments, config):
     cache_path = arguments.get('<cache_path>')
     cwl_apps = _get_cwl_apps()
-    print(cwl_apps)
+    num_cwl_apps = len(cwl_apps)
+    current_cwl_app = 0
+    find_pipeline_folder = re.compile("Cloning into '(\S+)'")
+    for repo, version, cwl in cwl_apps:
+        with tempfile.TemporaryDirectory() as tmpDir:
+            print("Working on cwl {} of {}".format(
+                current_cwl_app, num_cwl_apps))
+            git_repo = git.Git(tmpDir).clone(
+                repo, "--branch", version, "--recurse-submodules")
+            pipeline_folder = find_pipeline_folder.match(git_repo).group(1)
+            cwl_path = os.path.joins(tmpDir, pipeline_folder, cwl)
+            cache_command = "module load singularity/3.7.1; docker_extract.py -s {} {}".format(
+                cache_path, cwl_path)
+            subprocess.check_output(cache_command, shell=True)
 
 
 # Update
