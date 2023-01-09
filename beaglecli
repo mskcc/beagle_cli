@@ -765,10 +765,11 @@ def _update_cache(arguments, config):
         with tempfile.TemporaryDirectory() as tmpDir:
             print("Working on cwl {} of {}".format(
                 current_cwl_app, num_cwl_apps))
+            current_cwl_app += 1
             git_repo = git.Git(tmpDir).clone(
                 repo, "--branch", version, "--recurse-submodules")
             pipeline_folder = find_pipeline_folder.match(git_repo).group(1)
-            cwl_path = os.path.joins(tmpDir, pipeline_folder, cwl)
+            cwl_path = os.path.join(tmpDir, pipeline_folder, cwl)
             cache_command = "module load singularity/3.7.1; docker_extract.py -s {} {}".format(
                 cache_path, cwl_path)
             subprocess.check_output(cache_command, shell=True)
