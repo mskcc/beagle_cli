@@ -75,6 +75,7 @@ Usage:
   beaglecli files patch <file_id> [--file-path=<file_path>] [--file-type=<file_type>] [--file-group=<file_group_id>] [--metadata=<metadata>]... [--size=<size>]
   beaglecli files list [--page-size=<page_size>] [--path=<path>]... [--metadata=<metadata>]... [--file-group=<file_group>]... [--file-name=<file_name>]... [--filename-regex=<filename_regex>] [--file-type=<file_type>]... [--all]... [--packaged]... [--force]...
   beaglecli files delete --file-id=<file_id>...
+  beaglecli pipeline update-cache <cache_path>
   beaglecli sample create <sample-id>
   beaglecli sample list [--sample-id=<sample-id>]
   beaglecli sample redact <sample-id> [--value=<redact>]
@@ -157,6 +158,11 @@ def files_commands(arguments, config):
         return _patch_file(arguments, config)
 
 
+def pipeline_commands(arguments, config):
+    if arguments.get('update-cache'):
+        return _update_cache(arguments, config)
+
+
 def storage_commands(arguments, config):
     if arguments.get('list'):
         return _list_storage(arguments, config)
@@ -221,6 +227,8 @@ def sample_commands(arguments, config):
 def command(arguments, config):
     if arguments.get('files'):
         return files_commands(arguments, config)
+    if arguments.get('pipeline'):
+        return pipeline_commands(arguments, config)
     if arguments.get('storage'):
         return storage_commands(arguments, config)
     if arguments.get('file-types'):
@@ -349,6 +357,33 @@ def _get_latest_runs(run_dict):
             if current_max > run_date:
                 run_list = current_runs
     return run_list
+
+
+def _get_cwl_apps():
+    url = urljoin(BEAGLE_ENDPOINT, API['pipelines'])
+    params = dict()
+    params['page_size'] = 1000000
+    response = requests.get(url, headers={
+                            'Authorization': 'Bearer %s' % config.token, 'Content-Type': 'application/json'}, params=params)
+    cwl_set = set()
+    if response.ok:
+        response_json = response.json()
+        if "results" in response_json:
+            result_list = response_json["results"]
+            for single_pipeline in result_list:
+                pipeline_type = single_pipeline["pipeline_type"]
+                if pipeline_type == 0:
+                    github = single_pipeline["github"]
+                    version = single_pipeline["version"]
+                    entrypoint = single_pipeline["entrypoint"]
+                    cwl_set.add((github, version, entrypoint))
+            return cwl_set
+        else:
+            print("Error: beagle returned an empty")
+            exit(1)
+    else:
+        print("ERROR: Could not retrieve app list")
+        exit(1)
 
 
 def _get_apps_dict():
@@ -711,6 +746,14 @@ def _create_sample(arguments, config):
                              headers={'Authorization': 'Bearer %s' % config.token})
     response_json = json.dumps(response.json(), indent=4)
     return response_json
+
+# Pipeline
+
+
+def _update_cache(arguments, config):
+    cache_path = arguments.get('<cache_path>')
+    cwl_apps = _get_cwl_apps()
+    print(cwl_apps)
 
 
 # Update
