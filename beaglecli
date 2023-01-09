@@ -766,8 +766,11 @@ def _update_cache(arguments, config):
             print("Working on cwl {} of {}".format(
                 current_cwl_app, num_cwl_apps))
             current_cwl_app += 1
-            git_repo = git.Git(tmpDir).clone(
-                repo, "--branch", version, "--recurse-submodules")
+            try:
+                git_repo = git.Git(tmpDir).clone(
+                    repo, "--branch", version, "--recurse-submodules")
+            except git.exc.GitCommandError:
+                print("Could not find repo {} version {}".format(repo, version))
             pipeline_folder = find_pipeline_folder.match(git_repo).group(1)
             cwl_path = os.path.join(tmpDir, pipeline_folder, cwl)
             if os.path.exists(cwl_path):
