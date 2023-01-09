@@ -779,8 +779,8 @@ def _update_cache(arguments, config):
                 try:
                     subprocess.check_output(cache_command, shell=True)
                 except:
-                    print("Malformed CWL: CWL might not be valid: {}".format(
-                        current_cwl_app))
+                    print("Malformed CWL: CWL {} for repo {} version {} might not be valid".format(
+                        cwl, repo, version))
             else:
                 print("Malformed pipeline: Could not find cwl: {} in {} version {}".format(
                     cwl, repo, version))
