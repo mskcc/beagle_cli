@@ -770,10 +770,13 @@ def _update_cache(arguments, config):
                 repo, "--branch", version, "--recurse-submodules")
             pipeline_folder = find_pipeline_folder.match(git_repo).group(1)
             cwl_path = os.path.join(tmpDir, pipeline_folder, cwl)
-            cache_command = "module load singularity/3.7.1; docker_extract.py -s {} {}".format(
-                cache_path, cwl_path)
-            subprocess.check_output(cache_command, shell=True)
-
+            if os.path.exists(cwl_path):
+                cache_command = "module load singularity/3.7.1; docker_extract.py -s {} {}".format(
+                    cache_path, cwl_path)
+                subprocess.check_output(cache_command, shell=True)
+            else:
+                print("Malformed pipeline: Could not find cwl: {} in {} version {}".format(
+                    cwl, repo, version))
 
 # Update
 
