@@ -383,7 +383,7 @@ def _get_cwl_apps():
                     cwl_set.add((github, version, entrypoint))
             return cwl_set
         else:
-            print("Error: beagle returned an empty")
+            print("Error: beagle returned an empty response")
             exit(1)
     else:
         print("ERROR: Could not retrieve app list")
