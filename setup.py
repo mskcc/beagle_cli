@@ -6,7 +6,7 @@ install_requires = [ i.strip() for i in open("requirements.txt").readlines() ]
 
 setuptools.setup(
     name='beaglecli',
-    version='0.4.2',
+    version='0.4.3',
     scripts=['beaglecli'] ,
     description="Beagle API command line tool",
     url="https://github.com/mskcc/beagle_cli",
