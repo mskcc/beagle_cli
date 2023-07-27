@@ -7,7 +7,7 @@ import shutil
 import requests
 
 FLAG_TO_APPS = {
-    "dmpmanifest": ("access_manifest", "access_manifest"),
+    "dmpmanifest": ("access_manifest", "manifest"),
     "msi": ("access legacy MSI", "microsatellite_instability"),
     "cnv": ("access legacy CNV", "copy_number_variants"),
     "sv": ("access legacy SV", "structural_variants"),
@@ -19,31 +19,32 @@ FLAG_TO_APPS = {
 def access_commands(arguments, config):
     print('Running ACCESS')
 
-    request_id, sample_id, apps, show_all_runs = get_arguments(arguments)
-    tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request_id
-    if arguments.get('link'):
-        for (app, app_version) in apps:
-            (app_name, directory) = FLAG_TO_APPS[app]
-            operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
-            if operator_run:
-                if arguments.get('--single-dir'):
-                    if app == "bams":
-                        link_bams_to_single_dir(operator_run, app, request_id, sample_id, arguments, config, show_all_runs)
+    request_ids, sample_id, apps, show_all_runs = get_arguments(arguments)
+    for request in request_ids:  
+        tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request
+        if arguments.get('link'):
+            for (app, app_version) in apps:
+                (app_name, directory) = FLAG_TO_APPS[app]
+                operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
+                if operator_run:
+                    if arguments.get('--single-dir'):
+                        if app == "bams":
+                            link_bams_to_single_dir(operator_run, app, request, sample_id, arguments, config, show_all_runs)
+                        else:
+                            print("Apps other than bams not supported at this time")
                     else:
-                        print("Apps other than bams not supported at this time")
-                else:
-                    link_app(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs)
+                        link_app(operator_run, directory, request, sample_id, arguments, config, show_all_runs)
 
-    if arguments.get('link-patient'):
-        for (app, app_version) in apps:
-            (app_name, directory) = FLAG_TO_APPS[app]
-            operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
-            if operator_run:
-                if(app == "bams"):
-                    link_bams_by_patient_id(operator_run, "bams", request_id, sample_id, arguments, config, show_all_runs)
-                else:
-                    link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments,
-                                                           config, show_all_runs)
+        if arguments.get('link-patient'):
+            for (app, app_version) in apps:
+                (app_name, directory) = FLAG_TO_APPS[app]
+                operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
+                if operator_run:
+                    if(app == "bams"):
+                        link_bams_by_patient_id(operator_run, "bams", request, sample_id, arguments, config, show_all_runs)
+                    else:
+                        link_single_sample_workflows_by_patient_id(operator_run, directory, request, sample_id, arguments,
+                                                            config, show_all_runs)
 
 def get_operator_run(app_name, app_version=None, tags=None, config=None, show_all_runs=False):
     latest_operator_run = {
@@ -75,14 +76,27 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
 
     return latest_runs[0]
 
+def open_request_file(request_ids_file): 
+    try:
+        with open(request_ids_file,'r') as file:
+            request_ids = [] 
+            for line in file:
+                # Remove leading and trailing whitespaces and split the line by comma
+                request = line.strip(',\n')
+                # Append the list of items to the result list
+                request_ids.append(request)
+    except FileNotFoundError:
+            raise FileNotFoundError('Cannot find filename')
+    return request_ids
+    
 def get_arguments(arguments):
-    request_id = arguments.get('--request-id')
+    request_ids = arguments.get('--request-ids')
+    request_ids_file = arguments.get('--request-ids-file')
     sample_id = arguments.get('--sample-id')
     app_tags = arguments.get('--apps')
     show_all_runs = arguments.get('--all-runs') or False
-    if request_id:
-        request_id = request_id[0]
-
+    if request_ids_file: 
+        request_ids = open_request_file(request_ids_file)
     apps = [] # [(tag, version), ...]
     for app in app_tags:
         r = app.split(":")
@@ -91,7 +105,7 @@ def get_arguments(arguments):
         else:
             apps.append((r[0], None))
 
-    return request_id, sample_id, apps, show_all_runs
+    return request_ids, sample_id, apps, show_all_runs
 
 
 def get_runs(operator_run_id, config, show_all_runs):
