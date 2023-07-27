@@ -7,6 +7,7 @@ import shutil
 import requests
 
 FLAG_TO_APPS = {
+    "dmpmanifest": ("access_manifest", "access_manifest"),
     "msi": ("access legacy MSI", "microsatellite_instability"),
     "cnv": ("access legacy CNV", "copy_number_variants"),
     "sv": ("access legacy SV", "structural_variants"),
@@ -175,11 +176,13 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
-        a, b, _ = sample_id.split("-", 2)
-        patient_id = "-".join([a, b])
-
-        sample_path = path / patient_id / sample_id
+        if operator_run['app_name'] == 'access_manifest':
+            sample_path = path / request_id
+        else:
+            sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
+            a, b, _ = sample_id.split("-", 2)
+            patient_id = "-".join([a, b])
+            sample_path = path / patient_id / sample_id
         sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
         sample_version_path = sample_path / version
 
