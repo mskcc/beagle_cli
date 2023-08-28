@@ -190,7 +190,7 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
-        if operator_run['app_name'] == 'access_manifest':
+        if operator_run['app_name'] == 'cmo_manifest':
             sample_path = path / request_id
         else:
             sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
