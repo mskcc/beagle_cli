@@ -163,6 +163,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
             try:
+                breakpoint()
                 os.symlink('/juno' + run["output_directory"], path / run["id"])
                 print(('/juno' / path / run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
