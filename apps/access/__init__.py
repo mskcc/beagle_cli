@@ -157,8 +157,8 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
         run = get_run_by_id(run_meta["id"], config)
         if should_delete:
             try:
-                os.unlink('/juno' + path + run["id"])
-                print(('/juno' + path + run["id"]).absolute(), file=sys.stdout)
+                os.unlink(path + run["id"])
+                print((path + run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
