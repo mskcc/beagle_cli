@@ -157,16 +157,17 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
         run = get_run_by_id(run_meta["id"], config)
         if should_delete:
             try:
-                os.unlink(path / run["id"])
-                print((path / run["id"]).absolute(), file=sys.stdout)
+                os.unlink('/juno' + path + run["id"])
+                print(('/juno' + path + run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
             try:
-                os.symlink(run["output_directory"], path / run["id"])
-                print((path / run["id"]).absolute(), file=sys.stdout)
+                os.symlink('/juno' + run["output_directory"], path / run["id"])
+                breakpoint()
+                print(('/juno' / path / run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+                print("could not create symlink from '{}' to '{}'".format('/juno' + run["output_directory"], path / run["id"]), file=sys.stderr)
 
     try:
         os.unlink(path_without_version / "current")
@@ -255,6 +256,7 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
 
 
         sample_path = path
+        breakpoint()
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
