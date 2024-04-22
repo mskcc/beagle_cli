@@ -296,6 +296,7 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
 
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
+        breakpoint()
         file_path = '/juno' + get_file_path(file)
         _, file_ext = os.path.splitext(file_path)
 
