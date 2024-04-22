@@ -208,10 +208,10 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
                 print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
-                os.symlink(run["output_directory"], sample_version_path)
+                os.symlink('/juno' + run["output_directory"], sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
             except Exception as e:
-                print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+                print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), '/juno' + run["output_directory"]), file=sys.stderr)
 
         try:
             os.unlink(sample_path / "current")
@@ -296,7 +296,7 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
 
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
-        file_path = get_file_path(file)
+        file_path = '/juno' + get_file_path(file)
         _, file_ext = os.path.splitext(file_path)
 
         if file_ext not in accepted_file_types:
