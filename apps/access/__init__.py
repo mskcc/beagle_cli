@@ -260,9 +260,9 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
 
         try:
             os.symlink('/juno' + run["output_directory"], path / run["id"])
-            print(('/juno' / path / run["id"]).absolute(), file=sys.stdout)
+            print((path / run["id"]).absolute(), file=sys.stdout)
         except Exception as e:
-            print("Could not create symlink from '{}' to '{}'".format('/juno' + sample_version_path / file_name, file_path), file=sys.stderr)
+            print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
             continue
 
         try:
