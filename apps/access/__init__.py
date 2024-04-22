@@ -259,6 +259,7 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
         try:
+            breakpoint()
             os.symlink('/juno' + run["output_directory"], path / run["id"])
             print(('/juno' / path / run["id"]).absolute(), file=sys.stdout)
         except Exception as e:
