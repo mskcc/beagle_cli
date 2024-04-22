@@ -164,7 +164,6 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
         else:
             try:
                 os.symlink('/juno' + run["output_directory"], path / run["id"])
-                breakpoint()
                 print(('/juno' / path / run["id"]).absolute(), file=sys.stdout)
             except Exception as e:
                 print("could not create symlink from '{}' to '{}'".format('/juno' + run["output_directory"], path / run["id"]), file=sys.stderr)
