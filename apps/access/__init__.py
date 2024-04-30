@@ -164,8 +164,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
             try:
-                bad_path = "/juno/work/access/production/data/bams/.*"
-                breakpoint()
+                bad_path = "/work/access/production/data/bams/.*"
                 if re.match(run["output_directory"], bad_path):
                     mark_manual = path / "manual_bam"
                     mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
