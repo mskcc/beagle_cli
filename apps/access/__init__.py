@@ -158,6 +158,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
         run = get_run_by_id(run_meta["id"], config)
         if should_delete:
             bad_path = "/juno/work/access/production/data/bams/.*"
+            breakpoint()
             if re.match(run["output_directory"], bad_path):
                 mark_manual = path / "manual_bam"
                 mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
