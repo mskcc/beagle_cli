@@ -262,6 +262,7 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
         try:
             bad_path = "/juno/work/access/production/data/bams/.*"
             if re.match(run["output_directory"], bad_path):
+                breakpoint()
                 mark_manual = path / "manual_bam"
                 mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
                 return "Bad Bam"
@@ -328,7 +329,6 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
         else:
             try:
                 bad_path = "/juno/work/access/production/data/bams/.*"
-                breakpoint()
                 if re.match(run["output_directory"], bad_path):
                     mark_manual = sample_path / "manual_bam"
                     mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
