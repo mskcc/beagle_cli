@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from pathlib import Path
 import shutil
 import requests
+import re 
 
 FLAG_TO_APPS = {
     "dmpmanifest": ("access_manifest", "manifest"),
@@ -259,6 +260,11 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
 
         try:
+            bad_path = "/juno/work/access/production/data/bams/.*"
+            if re.match(run["output_directory"], bad_path):
+                mark_manual = path / "manual_bam"
+                mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
+                return "Bad Bam"
             os.symlink('/juno' + run["output_directory"], path / run["id"])
             print((path / run["id"]).absolute(), file=sys.stdout)
         except Exception as e:
@@ -321,6 +327,11 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
                 print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
+                bad_path = "/juno/work/access/production/data/bams/.*"
+                if re.match(run["output_directory"], bad_path):
+                    mark_manual = sample_path / "manual_bam"
+                    mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
+                    return "Bad Bam"
                 os.symlink(file_path, sample_version_path / file_name)
                 print((sample_version_path / file_name).absolute(), file=sys.stdout)
             except Exception as e:
