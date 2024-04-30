@@ -261,8 +261,8 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
 
         try:
             bad_path = "/juno/work/access/production/data/bams/.*"
+            breakpoint()
             if re.match(run["output_directory"], bad_path):
-                breakpoint()
                 mark_manual = path / "manual_bam"
                 mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
                 return "Bad Bam"
