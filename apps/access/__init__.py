@@ -166,9 +166,10 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
             try:
                 bad_path = r"/work/access/production/data/bams/.*"
                 if re.match(bad_path, run["output_directory"]):
+                    voyager_location = run["output_directory"]
                     mark_manual = path / "manual_bam"
                     # mark_manual.mkdir(parents=True, exist_ok=True, mode=0o755)
-                    print(f"Bam Path. Pointing to{run["output_directory"]}")
+                    print(f"Bam Path. Pointing to: {voyager_location}")
                     return "Bad Bam"
                 else: 
                     os.symlink('/juno' + run["output_directory"], path / run["id"])
