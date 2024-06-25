@@ -5,7 +5,9 @@ from urllib.parse import urljoin
 from pathlib import Path
 import shutil
 import requests
-
+import re
+import pdb
+import json
 FLAG_TO_APPS = {
     "dmpmanifest": ("access_manifest", "manifest"),
     "msi": ("access legacy MSI", "microsatellite_instability"),
@@ -54,6 +56,7 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
         "app_name": app_name
     }
 
+    operator_look_ahead(latest_operator_run, config, tags)
     if show_all_runs:
         latest_operator_run.pop("status")
 
@@ -69,12 +72,29 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
         if "igoRequestId" in tags:
             new_tag = tags.replace("igoRequestId", "requestId")
             return get_operator_run(app_name, app_version, tags=new_tag, config=config)
+        
         else:
             print("There are no completed operator runs for this request in the following app: %s:%s" %
                   (str(app_name), str(app_version)), file=sys.stderr)
             return None
 
     return latest_runs[0]
+
+def operator_look_ahead(latest_operator_run, config, tags):
+    threshold = float(.90)
+    complete = float(1.0)
+    request_id = json.loads(tags)['igoRequestId']
+    latest_operator_run_look_ahead = latest_operator_run.copy()
+    latest_operator_run_look_ahead.pop("status")
+    response_look_ahead = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
+                        headers={'Authorization': 'Bearer %s' % config['token']},
+                        params=latest_operator_run)
+    total_r = response_look_ahead.json()["results"][0]["num_total_runs"]
+    completed_r = response_look_ahead.json()["results"][0]["num_completed_runs"]
+    percent_c =  completed_r / total_r
+    if (percent_c >= threshold) and (percent_c < complete):
+        print(f"Warning there is a more recent operator run for request {request_id} that is incomplete, but with {percent_c} of runs completed. This may be the operator run you need for analysis. Consult the request's operator run history and consider using the --all-runs flag if appropriate.")
+
 
 def open_request_file(request_ids_file): 
     try:
@@ -114,13 +134,11 @@ def get_runs(operator_run_id, config, show_all_runs):
         "page_size": 1000,
         "status": "COMPLETED"
     }
-
     if show_all_runs:
         run_params.pop("status")
 
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
                             headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
-
     return response.json()["results"]
 
 def get_run_by_id(run_id, config):
@@ -162,6 +180,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
+            is_run_manual(run, request_id)
             try:
                 os.symlink(run["output_directory"], path / run["id"])
                 print((path / run["id"]).absolute(), file=sys.stdout)
@@ -289,11 +308,11 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
         return
 
     files = [] # (sample_id, /path/to/file)
-
+    
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
-
+    
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
         file_path = get_file_path(file)
@@ -339,6 +358,17 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
                 pass
 
     return "Completed"
+def is_run_manual(run, request_id):
+    pattern = "/work/access/production/data/bams/*"
+    match = re.match(pattern, run["output_directory"])
+    patient_dir = run["output_directory"] + '/current'
+    proj_dir = Path("./") / ("Project_" + request_id)
+    if match:
+        if Path(patient_dir).is_dir():
+            return True
+        else:
+            shutil.rmtree(proj_dir) 
+            raise FileNotFoundError(f'The folder {patient_dir} does not exist. Bams for request {request_id} were manually imported to Voyager. Please link patients in the data folder before linking the project folder.')
 
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
