@@ -25,6 +25,11 @@ class AccessBeagleEndpoint:
         print(f"Status {req.status_code}")
         return req
 
+    def post_url(self, url, body):
+        headers = {'content-type': 'application/json'}
+        req = requests.patch(url, data=json.dumps(body), auth=self.auth, headers=headers, verify=False)
+        print(f"Status {req.status_code}")
+        return req
 
     # had to build url weird because the requests docs were busted and I kept running into issues
     def get_etl_jobs_by_request(self, request_id):
@@ -61,6 +66,11 @@ class AccessBeagleEndpoint:
         response = self.patch_url(url, metadata)
         return response.json()
 
+    def start_operator_run_pairs(self, body):
+        url = f"{self.API}/v0/run/operator/pairs/"
+        response = self.post_url(url, body)
+        return response.json()
+
     def update_cmo_sample_names(self, current_sample_name, new_sample_name, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
         files = self.get_files_by_metadata(f"cmoSampleName:{current_sample_name}", file_group)
         for file in files:
@@ -75,7 +85,6 @@ class AccessBeagleEndpoint:
             }
             print(f"Updating {current_sample_name} to {new_sample_name} with ciTag:{ci_tag}")
             self.patch_file_metadata(file_id, body)
-
 
     def format_sample_name(self, sample_name, specimen_type, ignore_sample_formatting=False):
         """

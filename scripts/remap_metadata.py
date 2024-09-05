@@ -13,6 +13,6 @@ if __name__ == "__main__":
         remap = remap[1:]
         for line in remap:
             line = line.rstrip()
-            request_id, primary_id, lagacy_sample_label, current_sample_label = line.split("\t")
+            request_id, primary_id, current_sample_label, cmo_patient_id, delivery_date, lagacy_sample_label,  = line.split("\t")
             BEAGLE.update_cmo_sample_names(current_sample_label, lagacy_sample_label)
 
