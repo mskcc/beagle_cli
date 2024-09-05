@@ -43,7 +43,5 @@ if __name__ == "__main__":
     with open(sample_file_path, 'r') as f:
         sample_list = f.readlines()
     sample_list = [sample.rstrip() for sample in sample_list]
-    pairs = create_pairs(sample_list)
-    for pair in pairs:
-        BEAGLE.submit_run()
+    BEAGLE.start_operator_run_pairs(create_body(sample_list))
 
