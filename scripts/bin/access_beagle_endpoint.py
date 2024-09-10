@@ -27,7 +27,7 @@ class AccessBeagleEndpoint:
 
     def post_url(self, url, body):
         headers = {'content-type': 'application/json'}
-        req = requests.patch(url, data=json.dumps(body), auth=self.auth, headers=headers, verify=False)
+        req = requests.post(url, data=json.dumps(body), auth=self.auth, headers=headers, verify=False)
         print(f"Status {req.status_code}")
         return req
 
