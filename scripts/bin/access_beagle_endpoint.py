@@ -117,24 +117,3 @@ class AccessBeagleEndpoint:
                 return "sampleNameMalformed"
         else:
             return sample_name
-
-
-if __name__ == "__main__":
-    BEAGLE = AccessBeagleEndpoint()
-    old_sample_name = "C-AWXPEX-M003-d03"
-    new_sample_name = "C-AWXPEX-M001-d"
-    files = BEAGLE.get_files_by_metadata(f"cmoSampleName:{old_sample_name}", "b54d035d-f63c-4ea8-86fb-9dbc976bb7fe")
-    for file in files:
-        sample_name = file['metadata'].get("cmoSampleName", None)
-        print(old_sample_name)
-        sample_class = file['metadata'].get("sampleClass", None)
-        print(new_sample_name)
-        print(file['metadata'].get("ciTag"))
-        ci_tag = BEAGLE.format_sample_name(new_sample_name, sample_class)
-        print(ci_tag)
-        print(file['id'])
-        body = {
-            "cmoSampleName": new_sample_name,
-            "ciTag": ci_tag
-        }
-        print(body)

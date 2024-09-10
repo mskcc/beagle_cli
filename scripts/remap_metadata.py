@@ -1,4 +1,3 @@
-import os
 import sys
 import bin.access_beagle_endpoint as beagle_api
 
