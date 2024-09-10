@@ -1,8 +1,10 @@
 import sys
+from time import sleep
 import bin.access_beagle_endpoint as beagle_api
 
 BEAGLE = beagle_api.AccessBeagleEndpoint()
 
+PAUSE = 20
 SAMPLES_PER_RUN = 20
 PIPELINE = "Tempo"
 PIPELINE_VERSION = "feature/voyager"
@@ -69,5 +71,8 @@ if __name__ == "__main__":
     sample_list = [sample.rstrip() for sample in sample_list]
     lists_to_submit = split_into_batches(sample_list)
     for idx, l in enumerate(lists_to_submit, start=1):
-        BEAGLE.start_operator_run_pairs(create_body(f"{cohort_id}_{idx}", sample_list))
+        print(f"Submitting {cohort_id}_{idx} for samples {','.join(l)}")
+        BEAGLE.start_operator_run_pairs(create_body(f"{cohort_id}_{idx}", l))
+        print(f"Remaining {len(lists_to_submit) - idx}")
+        sleep(PAUSE)
 
