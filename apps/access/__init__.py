@@ -83,17 +83,21 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
 def operator_look_ahead(latest_operator_run, config, tags):
     threshold = float(.90)
     complete = float(1.0)
-    request_id = json.loads(tags)['igoRequestId']
+    try:
+        request_id = json.loads(tags)['igoRequestId']
+    except:
+         request_id = json.loads(tags)['requestId']
     latest_operator_run_look_ahead = latest_operator_run.copy()
     latest_operator_run_look_ahead.pop("status")
     response_look_ahead = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
                         headers={'Authorization': 'Bearer %s' % config['token']},
                         params=latest_operator_run)
-    total_r = response_look_ahead.json()["results"][0]["num_total_runs"]
-    completed_r = response_look_ahead.json()["results"][0]["num_completed_runs"]
-    percent_c =  completed_r / total_r
-    if (percent_c >= threshold) and (percent_c < complete):
-        print(f"Warning there is a more recent operator run for request {request_id} that is incomplete, but with {percent_c} of runs completed. This may be the operator run you need for analysis. Consult the request's operator run history and consider using the --all-runs flag if appropriate.")
+    if response_look_ahead.json()["results"]:
+        total_r = response_look_ahead.json()["results"][0]["num_total_runs"]
+        completed_r = response_look_ahead.json()["results"][0]["num_completed_runs"]
+        percent_c =  completed_r / total_r
+        if (percent_c >= threshold) and (percent_c < complete):
+            print(f"Warning there is a more recent operator run for request {request_id} that is incomplete, but with {percent_c} of runs completed. This may be the operator run you need for analysis. Consult the request's operator run history and consider using the --all-runs flag if appropriate.")
 
 
 def open_request_file(request_ids_file): 
@@ -367,7 +371,6 @@ def is_run_manual(run, request_id):
         if Path(patient_dir).is_dir():
             return True
         else:
-            shutil.rmtree(proj_dir) 
             raise FileNotFoundError(f'The folder {patient_dir} does not exist. Bams for request {request_id} were manually imported to Voyager. Please link patients in the data folder before linking the project folder.')
 
 def find_files_by_sample(file_group, sample_id = None):
