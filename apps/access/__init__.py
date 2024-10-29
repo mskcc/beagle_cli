@@ -184,6 +184,7 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
+            breakpoint()
             is_run_manual(run, request_id)
             try:
                 os.symlink(run["output_directory"], path / run["id"])
@@ -310,14 +311,20 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
 
     if not runs:
         return
+    
+    add_bai=False 
+    if len(runs) == 1:
+        manual_name="Run Access Legacy Fastq to Bam (file outputs) - Manual"
+        if manual_name in runs[0]["name"]:
+            add_bai=True
 
     files = [] # (sample_id, /path/to/file)
-    
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
     
     accepted_file_types = ['.bam', '.bai']
+    
     for (sample_id, file) in files:
         file_path = get_file_path(file)
         _, file_ext = os.path.splitext(file_path)
@@ -346,6 +353,10 @@ def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, argu
             try:
                 os.symlink(file_path, sample_version_path / file_name)
                 print((sample_version_path / file_name).absolute(), file=sys.stdout)
+                if add_bai:
+                    file_name_index = file_name.replace(".bam", ".bai")
+                    os.symlink(file_path, sample_version_path / file_name_index)
+                    print((sample_version_path / file_name_index).absolute(), file=sys.stdout)
             except Exception as e:
                 print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
                 continue
