@@ -184,7 +184,6 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
-            breakpoint()
             is_run_manual(run, request_id)
             try:
                 os.symlink(run["output_directory"], path / run["id"])
