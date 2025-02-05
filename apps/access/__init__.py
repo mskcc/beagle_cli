@@ -15,7 +15,7 @@ FLAG_TO_APPS = {
     "sv": ("access legacy SV", "structural_variants"),
     "snv": ("access legacy SNV", "small_variants"),
     "bams": ("access legacy", "bam_qc"),
-    "nucleo": ("access nucleo", "bam_qc"),
+    "nucleo": ("access v2 nucleo", "bam_qc"),
     "qc": ("access v2 nucleo qc", "quality_control"),
     "qc_agg": ("access v2 nucleo qc agg", "quality_control_aggregate"),
 }
