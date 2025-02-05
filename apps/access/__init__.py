@@ -16,6 +16,8 @@ FLAG_TO_APPS = {
     "snv": ("access legacy SNV", "small_variants"),
     "bams": ("access legacy", "bam_qc"),
     "nucleo": ("access nucleo", "bam_qc"),
+    "qc": ("access v2 nucleo qc", "quality_control"),
+    "qc_agg": ("access v2 nucleo qc agg", "quality_control_aggregate"),
 }
 
 def access_commands(arguments, config):
@@ -184,12 +186,14 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
-            is_run_manual(run, request_id)
-            try:
-                os.symlink(run["output_directory"], path / run["id"])
-                print((path / run["id"]).absolute(), file=sys.stdout)
-            except Exception as e:
-                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+            if is_run_manual(run, request_id):
+                print("Manual Run no linking in Project Directory, please see existing directory for results.", file=sys.stdout)
+            else:
+                try:
+                    os.symlink(run["output_directory"], path / run["id"])
+                    print((path / run["id"]).absolute(), file=sys.stdout)
+                except Exception as e:
+                    print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
 
     try:
         os.unlink(path_without_version / "current")

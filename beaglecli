@@ -30,6 +30,7 @@ import csv
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
+from apps.heme import heme_commands
 from apps.lims import lims_commands
 from apps.cleaning import clean_json_comands
 
@@ -98,6 +99,8 @@ Usage:
   beaglecli access link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete]
   beaglecli cmoch link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli cmoch link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli --version
 
 Options:
@@ -243,6 +246,12 @@ def command(arguments, config):
         }))
     if arguments.get('cmoch'):
         return (cmoch_commands(arguments, {
+            'token': config.token,
+            'beagle_endpoint': BEAGLE_ENDPOINT,
+            'api': API
+        }))
+    if arguments.get('heme'):
+        return (heme_commands(arguments, {
             'token': config.token,
             'beagle_endpoint': BEAGLE_ENDPOINT,
             'api': API

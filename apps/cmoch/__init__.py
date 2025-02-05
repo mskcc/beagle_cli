@@ -10,7 +10,8 @@ FLAG_TO_APPS = {
     "dmpmanifest": ("cmo_manifest", "manifest"),
     "bams": ("cmo-ch nucleo", "bams"),
     "qc": ("CMO-CH QC", "quality_control"),
-    "qc_agg": ("CMO-CH QC Agg", "quality_control_aggregate")
+    "qc_agg": ("CMO-CH QC Agg", "quality_control_aggregate"),
+    "chipvar": ("CMO-CH Chip-Var","chipvar")
 }
 
 
