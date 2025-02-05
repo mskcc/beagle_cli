@@ -216,10 +216,21 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
+        sample_key = None
         if operator_run['app_name'] == 'cmo_manifest':
             sample_path = path / request_id
         else:
-            sample_id = run["tags"]["cmoSampleIds"][0] if isinstance(run["tags"]["cmoSampleIds"], list) else run["tags"]["cmoSampleIds"]
+            if "cmoSampleIds" in run["tags"].keys():
+                sample_key = "cmoSampleIds"
+                sample_id = run["tags"][sample_key][0] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
+            elif "cmoSampleName" in run["tags"].keys():
+                sample_key = "cmoSampleName"
+                sample_id = run["tags"][sample_key][0] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
+            elif "cmoSampleId" in run["tags"].keys():
+                sample_key = "cmoSampleId"
+                sample_id = run["tags"][sample_key] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
+            else:
+                 raise LookupError(f'Operator run {run["id"]} is missing Sample Meta Data')
             a, b, _ = sample_id.split("-", 2)
             patient_id = "-".join([a, b])
             sample_path = path / patient_id / sample_id
