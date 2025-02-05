@@ -6,7 +6,6 @@ from pathlib import Path
 import shutil
 import requests
 import re
-import pdb
 import json
 FLAG_TO_APPS = {
     "dmpmanifest": ("access_manifest", "manifest"),
