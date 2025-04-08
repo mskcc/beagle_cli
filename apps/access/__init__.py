@@ -9,15 +9,20 @@ import re
 import json
 FLAG_TO_APPS = {
     "dmpmanifest": ("access_manifest", "manifest"),
+    "bams": ("access legacy", "bam_qc"),
     "msi": ("access legacy MSI", "microsatellite_instability"),
     "cnv": ("access legacy CNV", "copy_number_variants"),
     "sv": ("access legacy SV", "structural_variants"),
     "snv": ("access legacy SNV", "small_variants"),
-    "bams": ("access legacy", "bam_qc"),
-    "nucleo": ("access v2 nucleo", "bam_qc"),
-    "qc": ("access v2 nucleo qc", "quality_control"),
-    "qc_agg": ("access v2 nucleo qc agg", "quality_control_aggregate"),
+    "bams_xs2":("access v2 nucleo", "bam_qc"),
+    "qc_xs2":("access v2 nucleo qc", "quality_control"),
+    "qc_agg_xs2":("access v2 nucleo qc agg", "quality_control_aggregate"),
+    "snv_xs2":("access v2 legacy SNV", "small_variants"),
+    "msi_xs2":("access v2 legacy MSI", "microsatellite_instability"),
+    "cnv_xs2":("access v2 legacy CNV", "copy_number_variants"),
+    "sv_xs2":("access v2 legacy SV", "structural_variants")
 }
+
 
 def access_commands(arguments, config):
     print('Running ACCESS')
