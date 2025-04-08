@@ -222,7 +222,7 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         sample_key = None
-        if operator_run['app_name'] == 'cmo_manifest':
+        if operator_run['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
             sample_path = path / request_id
         else:
             if "cmoSampleIds" in run["tags"].keys():
