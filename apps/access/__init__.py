@@ -233,7 +233,7 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
                 sample_id = run["tags"][sample_key][0] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
             elif "cmoSampleId" in run["tags"].keys():
                 sample_key = "cmoSampleId"
-                sample_id = run["tags"][sample_key] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
+                sample_id = run["tags"][sample_key][0] if isinstance(run["tags"][sample_key], list) else run["tags"][sample_key]
             else:
                  raise LookupError(f'Operator run {run["id"]} is missing Sample Meta Data')
             a, b, _ = sample_id.split("-", 2)
