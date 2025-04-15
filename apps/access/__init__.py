@@ -48,7 +48,7 @@ def access_commands(arguments, config):
                 (app_name, directory) = FLAG_TO_APPS[app]
                 operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
                 if operator_run:
-                    if(app == "bams"):
+                    if(app in ["bams", "bams_xs2"]):
                         link_bams_by_patient_id(operator_run, "bams", request, sample_id, arguments, config, show_all_runs)
                     else:
                         link_single_sample_workflows_by_patient_id(operator_run, directory, request, sample_id, arguments,
