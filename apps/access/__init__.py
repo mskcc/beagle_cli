@@ -161,7 +161,7 @@ def get_runs(operator_run_id, config, uncompleted_runs):
         
         response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
                                 headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
-        response_rslts.append(response.json()["results"][0])
+        response_rslts = response_rslts + response.json()["results"]
     return response_rslts
 
 def get_run_by_id(run_id, config):
@@ -198,6 +198,10 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
             try:
                 os.unlink(path / run["id"])
                 print((path / run["id"]).absolute(), file=sys.stdout)
+                if len(os.listdir(path)) == 0:
+                    print("no remaining runs in version, deleting directory {} ".format(path), file=sys.stderr)
+                    print(f"deleting {path}")
+                    shutil.rmtree(path)
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
@@ -225,7 +229,6 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
-
     runs = get_runs(operator_runs, config, uncompleted_runs)
     if not runs:
         return
@@ -233,7 +236,7 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         sample_key = None
-        if operator_runs['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
+        if operator_runs[0]['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
             sample_path = path / request_id
         else:
             if "cmoSampleIds" in run["tags"].keys():
@@ -257,6 +260,10 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
             try:
                 os.unlink(sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
+                if len(os.listdir(sample_path)) == 0:
+                        print("no remaining sample versions, deleting sample directory {} ".format(sample_path), file=sys.stderr)
+                        print(f"deleting {sample_path}")
+                        shutil.rmtree(sample_path)
             except Exception as e:
                 print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
         else:
@@ -376,6 +383,15 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
             try:
                 shutil.rmtree(sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
+                # delete if there are no other versions remaining
+                # if len(os.listdir(sample_path)) == 1:
+                #     if os.path.islink(sample_path / os.listdir(sample_path)[0]) and not os.path.exists(sample_path / os.listdir(sample_path)[0]):
+                #         print("no remaining sample versions, deleting sample directory {} ".format(sample_path), file=sys.stderr)
+                #         shutil.rmtree(sample_path)
+                if len(os.listdir(sample_path)) == 0:
+                        print("no remaining sample versions, deleting sample directory {} ".format(sample_path), file=sys.stderr)
+                        print(f"deleting {sample_path}")
+                        shutil.rmtree(sample_path)
             except Exception as e:
                 print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
         else:
