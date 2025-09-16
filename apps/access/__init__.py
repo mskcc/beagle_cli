@@ -25,36 +25,38 @@ FLAG_TO_APPS = {
 
 
 def access_commands(arguments, config):
-    print('Running ACCESS')
-
-    request_ids, sample_id, apps, show_all_runs = get_arguments(arguments)
+    print('Running ACCESS')    
+    request_ids, sample_id, apps, uncompleted_runs = get_arguments(arguments)
     for request in request_ids:  
         tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request
         if arguments.get('link'):
             for (app, app_version) in apps:
                 (app_name, directory) = FLAG_TO_APPS[app]
-                operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
-                if operator_run:
+                operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
+                if operator_runs:
                     if arguments.get('--single-dir'):
                         if app == "bams":
-                            link_bams_to_single_dir(operator_run, app, request, sample_id, arguments, config, show_all_runs)
+                            link_bams_to_single_dir(operator_runs, app, request, sample_id, arguments, config, uncompleted_runs)
                         else:
                             print("Apps other than bams not supported at this time")
                     else:
-                        link_app(operator_run, directory, request, sample_id, arguments, config, show_all_runs)
+                        link_app(operator_runs, directory, request, sample_id, arguments, config, uncompleted_runs)
 
         if arguments.get('link-patient'):
             for (app, app_version) in apps:
                 (app_name, directory) = FLAG_TO_APPS[app]
-                operator_run = get_operator_run(app_name, app_version, tags, config, show_all_runs)
-                if operator_run:
+                operator_runs = get_operator_run(app_name, app_version, tags, config, uncompleted_runs)
+                if operator_runs:
                     if(app in ["bams", "bams_xs2"]):
-                        link_bams_by_patient_id(operator_run, "bams", request, sample_id, arguments, config, show_all_runs)
+                        link_bams_by_patient_id(operator_runs, "bams", request, sample_id, arguments, config, uncompleted_runs)
                     else:
-                        link_single_sample_workflows_by_patient_id(operator_run, directory, request, sample_id, arguments,
-                                                            config, show_all_runs)
+                        link_single_sample_workflows_by_patient_id(operator_runs, directory, request, sample_id, arguments,
+                                                            config, uncompleted_runs)
 
-def get_operator_run(app_name, app_version=None, tags=None, config=None, show_all_runs=False):
+def get_operator_run(app_name, arguments, app_version=None, tags=None, config=None, uncompleted_runs=False):
+    should_delete = arguments.get("--delete") or False
+    all_runs = arguments.get("--all-runs") or False
+    
     latest_operator_run = {
         "tags": tags,
         "status": "COMPLETED",
@@ -62,8 +64,8 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
         "app_name": app_name
     }
 
-    operator_look_ahead(latest_operator_run, config, tags)
-    if show_all_runs:
+    # operator_look_ahead(latest_operator_run, config, tags)
+    if uncompleted_runs:
         latest_operator_run.pop("status")
 
     if app_version:
@@ -72,19 +74,22 @@ def get_operator_run(app_name, app_version=None, tags=None, config=None, show_al
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
                             headers={'Authorization': 'Bearer %s' % config['token']},
                             params=latest_operator_run)
-
     latest_runs = response.json()["results"]
     if not latest_runs:
         if "igoRequestId" in tags:
             new_tag = tags.replace("igoRequestId", "requestId")
-            return get_operator_run(app_name, app_version, tags=new_tag, config=config)
-        
+            return get_operator_run(app_name, arguments, app_version, tags=new_tag, config=config)
         else:
             print("There are no completed operator runs for this request in the following app: %s:%s" %
                   (str(app_name), str(app_version)), file=sys.stderr)
             return None
-
-    return latest_runs[0]
+    if all_runs and should_delete:
+        next_response = response.json()['next']
+        while next_response:
+            response = requests.get(next_response, headers={'Authorization': 'Bearer %s' % config['token']})
+            next_response = response.json()['next']
+            latest_runs.append(response.json()["results"][0])
+    return latest_runs
 
 def operator_look_ahead(latest_operator_run, config, tags):
     threshold = float(.90)
@@ -124,7 +129,7 @@ def get_arguments(arguments):
     request_ids_file = arguments.get('--request-ids-file')
     sample_id = arguments.get('--sample-id')
     app_tags = arguments.get('--apps')
-    show_all_runs = arguments.get('--all-runs') or False
+    uncompleted_runs = arguments.get('--uncompleted-runs') or False
     if request_ids_file: 
         request_ids = open_request_file(request_ids_file)
     apps = [] # [(tag, version), ...]
@@ -135,21 +140,25 @@ def get_arguments(arguments):
         else:
             apps.append((r[0], None))
 
-    return request_ids, sample_id, apps, show_all_runs
+    return request_ids, sample_id, apps, uncompleted_runs
 
 
-def get_runs(operator_run_id, config, show_all_runs):
-    run_params = {
-        "operator_run": operator_run_id,
-        "page_size": 1000,
-        "status": "COMPLETED"
-    }
-    if show_all_runs:
-        run_params.pop("status")
+def get_runs(operator_run_id, config, uncompleted_runs):
+    response_rslts = []
+    for oprn in operator_run_id:
+        run_params = {
+            "operator_run": oprn['id'],
+            "page_size": 1000,
+            "status": "COMPLETED"
+        }
 
-    response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
-                            headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
-    return response.json()["results"]
+        if uncompleted_runs:
+            run_params.pop("status")
+        
+        response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
+                                headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
+        response_rslts.append(response.json()["results"][0])
+    return response_rslts
 
 def get_run_by_id(run_id, config):
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run_id),
@@ -167,19 +176,17 @@ def get_files_by_run_id(run_id, config):
 def get_file_path(file):
     return file["location"][7:]
 
-def link_app(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
-    version = arguments.get("--dir-version") or operator_run["app_version"]
+def link_app(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
+    version = arguments.get("--dir-version") 
     should_delete = arguments.get("--delete") or False
 
     path = Path("./")
     path_without_version = path / ("Project_" + request_id) / directory
     path = path_without_version / version
     path.mkdir(parents=True, exist_ok=True, mode=0o755)
-
-    runs = get_runs(operator_run["id"], config, show_all_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs)
     if not runs:
         return
-
     files = [] # (sample_id, /path/to/file)
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
@@ -209,20 +216,20 @@ def link_app(operator_run, directory, request_id, sample_id, arguments, config, 
     return "Completed"
 
 
-def link_single_sample_workflows_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
-    version = arguments.get("--dir-version") or operator_run["app_version"]
+def link_single_sample_workflows_by_patient_id(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
+    version = arguments.get("--dir-version") or operator_runs["app_version"]
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    runs = get_runs(operator_run["id"], config, show_all_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs)
     if not runs:
         return
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         sample_key = None
-        if operator_run['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
+        if operator_runs['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
             sample_path = path / request_id
         else:
             if "cmoSampleIds" in run["tags"].keys():
@@ -265,12 +272,12 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
 
     return "Completed"
 
-def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
-    version = arguments.get("--dir-version") or operator_run["app_version"]
+def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
+    version = arguments.get("--dir-version")
 
     path = Path("./") / directory / ("Project_" + request_id)
 
-    runs = get_runs(operator_run["id"], config, show_all_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs)
 
     if not runs:
         return
@@ -319,13 +326,13 @@ def link_bams_to_single_dir(operator_run, directory, request_id, sample_id, argu
 
     return "Completed"
 
-def link_bams_by_patient_id(operator_run, directory, request_id, sample_id, arguments, config, show_all_runs):
-    version = arguments.get("--dir-version") or operator_run["app_version"]
+def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
+    version = arguments.get("--dir-version") 
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
 
-    runs = get_runs(operator_run["id"], config, show_all_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs)
 
     if not runs:
         return
