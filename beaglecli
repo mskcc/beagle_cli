@@ -95,8 +95,8 @@ Usage:
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
   beaglecli lims metadata [--request-id=<request_id>]
-  beaglecli access link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete]
-  beaglecli access link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete]
+  beaglecli access link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
+  beaglecli access link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
   beaglecli cmoch link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli cmoch link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli heme link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]

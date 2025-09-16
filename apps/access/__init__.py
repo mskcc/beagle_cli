@@ -45,7 +45,7 @@ def access_commands(arguments, config):
         if arguments.get('link-patient'):
             for (app, app_version) in apps:
                 (app_name, directory) = FLAG_TO_APPS[app]
-                operator_runs = get_operator_run(app_name, app_version, tags, config, uncompleted_runs)
+                operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
                 if operator_runs:
                     if(app in ["bams", "bams_xs2"]):
                         link_bams_by_patient_id(operator_runs, "bams", request, sample_id, arguments, config, uncompleted_runs)
@@ -130,6 +130,10 @@ def get_arguments(arguments):
     sample_id = arguments.get('--sample-id')
     app_tags = arguments.get('--apps')
     uncompleted_runs = arguments.get('--uncompleted-runs') or False
+    all_runs = arguments.get('--all-runs')
+    delete = arguments.get('--delete') or False
+    if all_runs and delete is False:
+        raise ValueError("The --all-runs flag must be used with the --delete flag to avoid accidental linking of multiple runs.")
     if request_ids_file: 
         request_ids = open_request_file(request_ids_file)
     apps = [] # [(tag, version), ...]
