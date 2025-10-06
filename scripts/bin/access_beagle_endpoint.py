@@ -24,7 +24,7 @@ class AccessBeagleEndpoint:
         data = self.run_url(url)
         file_ids = list()
         for result in data['results']:
-        file_ids.append(result['id'])
+            file_ids.append(result['id'])
         return file_ids
 
     def get_file_id_by_path(self, path):
