@@ -35,7 +35,7 @@ from apps.lims import lims_commands
 from apps.cleaning import clean_json_comands
 
 
-BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://voyager:5007')
+BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://isvvoyagerstage01.mskcc.org:4007')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
 BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
 
@@ -95,12 +95,12 @@ Usage:
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
   beaglecli lims metadata [--request-id=<request_id>]
-  beaglecli access link [--single-dir] [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
-  beaglecli access link-patient [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
-  beaglecli cmoch link [--single-dir] [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
-  beaglecli cmoch link-patient [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
-  beaglecli heme link [--single-dir] [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
-  beaglecli heme link-patient [--all-runs] [--all-requests] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli access link [--single-dir] [--app-prefix=<app-prefix>] [--single-dir] [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
+  beaglecli access link-patient [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
+  beaglecli cmoch link [--single-dir] [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli cmoch link-patient [--all-requests] [--all-runs] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link [--single-dir] [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link-patient [--all-runs] [--all-requests] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli --version
 
 Options:
