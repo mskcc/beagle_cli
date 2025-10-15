@@ -36,23 +36,24 @@ FLAG_TO_APPS = {
 
 def access_commands(arguments, config):
     print('Running Linking')    
-    request_ids, sample_id, apps, uncompleted_runs = get_arguments(arguments)
+    request_ids, sample_id, apps, uncompleted_runs, app_prefix = get_arguments(arguments)
     if arguments.get('--all-requests'):
-        tags = ''
         request = None
-        link_runs(apps, arguments, None, request, sample_id, tags, config, uncompleted_runs, app_prefix="JUNO: ")
+        link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app_prefix)
     elif arguments.get('--request-ids'): 
         for request in request_ids:  
-            tags = '{"cmoSampleIds":"%s"}' % sample_id if sample_id else '{"igoRequestId":"%s"}' % request
-            link_runs(apps, arguments, None, request, sample_id, tags, config, uncompleted_runs)
+            link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app_prefix)
     else:
         raise ValueError("Must provide either --all-requests or --request-ids")
 
 
-def link_runs(apps, arguments, operator_runs, request, sample_id, tags, config, uncompleted_runs, app_prefix=''):
+def link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app_prefix=''):
     if arguments.get('link'):
         for (app, app_version) in apps:
-            (app_name, directory) = app_prefix + FLAG_TO_APPS[app]
+            (app_name, directory) = FLAG_TO_APPS[app]
+            app_name = f'{app_prefix} {app_name}' 
+            all_requests = arguments.get("--all-requests") or False
+            tags = build_params(sample_id, request, app_name,all_requests, use_json_tags=False)
             operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
             if operator_runs:
                 if arguments.get('--single-dir'):
@@ -66,8 +67,12 @@ def link_runs(apps, arguments, operator_runs, request, sample_id, tags, config, 
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
+            if app_prefix:
+                app_name = f'{app_prefix} {app_name}'
+            all_requests = arguments.get("--all-requests") or False
+            tags = build_params(sample_id, request, app_name,all_requests, use_json_tags=False)
             operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
-            operator_runs = operator_runs[0:2]
+            # operator_runs = operator_runs[0:2]
             if operator_runs:
                 if(app in ["bams", "bams_xs2"]):
                     link_bams_by_patient_id(operator_runs, "bams", request, sample_id, arguments, config, uncompleted_runs)
@@ -75,18 +80,36 @@ def link_runs(apps, arguments, operator_runs, request, sample_id, tags, config, 
                     link_single_sample_workflows_by_patient_id(operator_runs, directory, request, sample_id, arguments,
                                                         config, uncompleted_runs)
 
+def build_params(sample_id, request, app, all_requests, use_json_tags):
+    params = {
+        "status": "COMPLETED",
+        "page_size": "1",
+        "app_name": app,
+    }
+
+    if all_requests:
+        return params
+
+    tags = {}
+    if sample_id:
+        tags["cmoSampleIds"] = sample_id
+    if request:
+        tags["igoRequestId"] = request
+
+    if tags:
+        params["tags"] = json.dumps(tags)
+
+    return params
+
+
+
+    return params
 def get_operator_run(app_name, arguments, app_version=None, tags=None, config=None, uncompleted_runs=False):
     should_delete = arguments.get("--delete") or False
     all_runs = arguments.get("--all-runs") or False
     all_requests = arguments.get("--all-requests") or False
 
-    latest_operator_run = {
-        "tags": tags,
-        "status": "COMPLETED",
-        "page_size": 1,
-        "app_name": app_name
-    }
-    seen_request_ids = set()
+    latest_operator_run = tags
     # operator_look_ahead(latest_operator_run, config, tags)
     if uncompleted_runs:
         latest_operator_run.pop("status")
@@ -94,13 +117,11 @@ def get_operator_run(app_name, arguments, app_version=None, tags=None, config=No
     if app_version:
         latest_operator_run["app_version"] = app_version
 
-    if all_requests:
-        latest_operator_run.pop("tags")
-        latest_operator_run.pop("page_size")
+
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
                             headers={'Authorization': 'Bearer %s' % config['token']},
                             params=latest_operator_run)
-    latest_runs = response.json()["results"]
+    latest_runs = response.json()["results"] 
     if not latest_runs:
         if "igoRequestId" in tags:
             new_tag = tags.replace("igoRequestId", "requestId")
@@ -158,6 +179,7 @@ def get_arguments(arguments):
     uncompleted_runs = arguments.get('--uncompleted-runs') or False
     all_runs = arguments.get('--all-runs')
     delete = arguments.get('--delete') or False
+    app_prefix = arguments.get('--app-prefix') or None
     if all_runs and delete is False:
         raise ValueError("The --all-runs flag must be used with the --delete flag to avoid accidental linking of multiple runs.")
     if request_ids_file: 
@@ -170,7 +192,7 @@ def get_arguments(arguments):
         else:
             apps.append((r[0], None))
 
-    return request_ids, sample_id, apps, uncompleted_runs
+    return request_ids, sample_id, apps, uncompleted_runs, app_prefix
 
 
 def get_runs(operator_run_id, config, uncompleted_runs, all_requests=False):
@@ -209,7 +231,6 @@ def get_run_by_id(run_id, config):
 def get_files_by_run_id(run_id, config):
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run'] + run_id),
                             headers={'Authorization': 'Bearer %s' % config['token']})
-
     return response.json()["outputs"]
 
 def get_file_path(file):
@@ -336,7 +357,6 @@ def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arg
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
-
     accepted_file_types = ['.bam', '.bai']
     for (sample_id, file) in files:
         file_path = get_file_path(file)
@@ -380,7 +400,6 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
     should_delete = arguments.get("--delete") or False
 
     path = Path("./") / directory
-
     runs = get_runs(operator_runs, config, uncompleted_runs)
 
     if not runs:
@@ -396,7 +415,6 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
-    
     accepted_file_types = ['.bam', '.bai']
     seen_paths = set()
     for (sample_id, file) in files:
