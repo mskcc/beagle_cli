@@ -268,6 +268,10 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
             #     print("Manual Run no linking in Project Directory, please see existing directory for results.", file=sys.stdout)
             # else:
                 try:
+                    if os.path.islink(path / run["id"]) and not os.path.exists(path / run["id"]):
+                        run_path = path / run["id"]
+                        print(f"Removing broken symlink for: {run_path}")
+                        os.remove(path / run["id"])
                     os.symlink(run["output_directory"], path / run["id"])
                     print((path / run["id"]).absolute(), file=sys.stdout)
                 except Exception as e:
@@ -327,8 +331,12 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
                 print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
+                if os.path.islink(sample_version_path) and not os.path.exists(sample_version_path):
+                    print(f"Removing broken symlink for: {sample_version_path}")
+                    os.remove(sample_version_path)
                 os.symlink(run["output_directory"], sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
+
             except Exception as e:
                 print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
 
@@ -375,8 +383,12 @@ def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arg
         sample_path = path
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+        full_path = sample_version_path / file_name
 
         try:
+            if os.path.islink(full_path) and not os.path.exists(full_path):
+                    print(f"Removing broken symlink for: {full_path}")
+                    os.remove(full_path)
             os.symlink(file_path, sample_version_path / file_name)
             print((sample_version_path / file_name).absolute(), file=sys.stdout)
         except Exception as e:
@@ -433,6 +445,9 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
 
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
+        full_path = sample_version_path / file_name
+        file_name_index = file_name.replace(".bam", ".bai")
+        full_path_index = sample_version_path / file_name_index
 
         if (sample_version_path / file_name) in seen_paths:
             print(f"Skipping duplicate file {file_path} for sample {sample_id}", file=sys.stderr)
@@ -457,15 +472,19 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
                 print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
-                os.symlink(file_path, sample_version_path / file_name)
-                print((sample_version_path / file_name).absolute(), file=sys.stdout)
-                seen_paths.add(sample_version_path / file_name)
+                if os.path.islink(full_path) and not os.path.exists(full_path):
+                    print(f"Removing broken symlink for: {full_path}")
+                    os.remove(full_path)
+                    if add_bai:
+                        os.remove(full_path_index)
+                os.symlink(file_path, full_path)
+                print((full_path).absolute(), file=sys.stdout)
+                seen_paths.add(full_path)
                 if add_bai:
-                    file_name_index = file_name.replace(".bam", ".bai")
-                    os.symlink(file_path, sample_version_path / file_name_index)
-                    print((sample_version_path / file_name_index).absolute(), file=sys.stdout)
+                    os.symlink(file_path, full_path_index)
+                    print((full_path_index).absolute(), file=sys.stdout)
             except Exception as e:
-                print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+                print("Could not create symlink from '{}' to '{}'".format(full_path, file_path), file=sys.stderr)
                 continue
 
         try:
