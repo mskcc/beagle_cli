@@ -254,6 +254,12 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
     for run_meta in runs:
         if all_requests:
             request_id = run_meta["request_id"]
+            if request_id_prev != request_id:
+                try: 
+                    os.symlink(path.absolute(), path_without_version / "current")
+                except:
+                    print(f'Could not create current folder for: {path.absolute()}')
+        request_id_prev = request_id
         path = Path("./")
         if request_id is None: 
             pass 
@@ -274,25 +280,20 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
-            # if is_run_manual(run, request_id):
-            #     print("Manual Run no linking in Project Directory, please see existing directory for results.", file=sys.stdout)
-            # else:
-                try:
-                    if os.path.islink(path / run["id"]) and not os.path.exists(path / run["id"]):
-                        run_path = path / run["id"]
-                        print(f"Removing broken symlink for: {run_path}")
-                        os.remove(path / run["id"])
-                    os.symlink(run["output_directory"], path / run["id"])
-                    print((path / run["id"]).absolute(), file=sys.stdout)
-                except Exception as e:
-                    breakpoint()
-                    print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
-
-    try:
+            try:
+                if os.path.islink(path / run["id"]) and not os.path.exists(path / run["id"]):
+                    run_path = path / run["id"]
+                    print(f"Removing broken symlink for: {run_path}")
+                    os.remove(path / run["id"])
+                os.symlink(run["output_directory"], path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                breakpoint()
+                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+    try: 
         os.unlink(path_without_version / "current")
-    except:
+    except: 
         pass
-
     if not should_delete:
         os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
@@ -520,16 +521,11 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
 
     return "Completed"
 def is_run_manual(run, request_id):
-    pattern = "/work/access/production/data/bams/*"
+    pattern = r"/data1/core006/access/production/runs/Project_.*/bam_qc"
     match = re.match(pattern, run["output_directory"])
-    patient_dir = run["output_directory"] + '/current'
-    proj_dir = Path("./") / ("Project_" + request_id)
     if match:
-        if Path(patient_dir).is_dir():
-            return True
-        else:
-            raise FileNotFoundError(f'The folder {patient_dir} does not exist. Bams for request {request_id} were manually imported to Voyager. Please link patients in the data folder before linking the project folder.')
-
+        return True
+    return False
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
         files = []
