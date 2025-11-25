@@ -594,6 +594,7 @@ def _list_files(arguments, config):
     params['file_name'] = file_name
     params['filename_regex'] = filename_regex
     params['file_type'] = file_type
+    params['page_size'] = page_size
     if all_pages:
         count_params = params 
         count_params['count'] = True 
