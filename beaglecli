@@ -30,6 +30,7 @@ import csv
 
 from apps.access import access_commands
 from apps.cmoch import cmoch_commands
+from apps.heme import heme_commands
 from apps.lims import lims_commands
 from apps.cleaning import clean_json_comands
 
@@ -94,10 +95,12 @@ Usage:
   beaglecli tempo-mpgen
   beaglecli tempo-mpgen override --normals=<normal_samples> --tumors=<tumor_samples>
   beaglecli lims metadata [--request-id=<request_id>]
-  beaglecli access link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete]
-  beaglecli access link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete]
-  beaglecli cmoch link [--single-dir] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
-  beaglecli cmoch link-patient [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli access link [--single-dir] [--app-prefix=<app-prefix>] [--single-dir] [--all-requests] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
+  beaglecli access link-patient [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<msi|cnv|sv|snv|bams|nucleo>]... [--delete] [--uncompleted-runs]
+  beaglecli cmoch link [--single-dir] [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli cmoch link-patient [--all-requests] [--all-runs] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link [--single-dir] [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
+  beaglecli heme link-patient [--all-runs] [--all-requests] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli --version
 
 Options:
@@ -242,7 +245,13 @@ def command(arguments, config):
             'api': API
         }))
     if arguments.get('cmoch'):
-        return (cmoch_commands(arguments, {
+        return (access_commands(arguments, {
+            'token': config.token,
+            'beagle_endpoint': BEAGLE_ENDPOINT,
+            'api': API
+        }))
+    if arguments.get('heme'):
+        return (access_commands(arguments, {
             'token': config.token,
             'beagle_endpoint': BEAGLE_ENDPOINT,
             'api': API

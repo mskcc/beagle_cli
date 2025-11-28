@@ -8,15 +8,15 @@ import requests
 
 FLAG_TO_APPS = {
     "dmpmanifest": ("cmo_manifest", "manifest"),
-    "bams": ("cmo-ch nucleo", "bams"),
-    "qc": ("CMO-CH QC", "quality_control"),
-    "qc_agg": ("CMO-CH QC Agg", "quality_control_aggregate"),
-    "chipvar": ("CMO-CH Chip-Var","chipvar")
+    "bams": ("heme nucleo", "bams"),
+    "qc": ("heme nucleo qc", "quality_control"),
+    "qc_agg": ("heme nucleo qc agg", "quality_control_aggregate"),
+    "chipvar": ("Heme Chip-Var","chipvar")
 }
 
 
-def cmoch_commands(arguments, config):
-    print('Running CMOCH')
+def heme_commands(arguments, config):
+    print('Running HEME')
 
     request_ids, sample_id, apps, show_all_runs = get_arguments(arguments)
     for request in request_ids: 
@@ -200,7 +200,7 @@ def link_single_sample_workflows_by_patient_id(operator_run, directory, request_
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
 
-        if operator_run['app_name'] in ['CMO-CH QC Agg', 'cmo_manifest'] :
+        if operator_run['app_name'] in ['heme nucleo qc agg', 'cmo_manifest'] :
                 sample_path = path / request_id
         else: 
             if "cmoSampleIds" in run["tags"].keys(): 
