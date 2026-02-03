@@ -112,9 +112,9 @@ if __name__ == "__main__":
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_file = sys.argv[2]
+        input_directory = sys.argv[2]
         output_file = sys.argv[3]
-        parse_cohort_file(input_file, output_file)
+        parse_cohort_files(input_directory, output_file)
     elif command == "remove":
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
