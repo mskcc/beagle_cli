@@ -83,17 +83,23 @@ def ci_tags_to_primary_ids(samples, file_group):
     return primary_ids
 
 
-def parse_cohort_file(input_file, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
-    # Parse cohort file
-    samples = get_list_of_samples_from_cohort_file(input_file)
-    # Convert from ciTags to primaryIds
-    primary_ids = ci_tags_to_primary_ids(samples, file_group)
+import os
+
+def parse_cohort_files(input_directory, output_file):
+    all_samples = []
+
+    for file in os.listdir(input_directory):
+        if file.endswith(".txt"):  
+            file_path = os.path.join(input_directory, file)
+            samples = get_list_of_samples_from_cohort_file(file_path)
+            all_samples.extend(samples)
+
+    # Write all samples to the output file
     with open(output_file, "w") as f:
-        for sample in primary_ids:
+        for sample in all_samples:
             f.write(f"{sample}\n")
-    print(f"File {output_file} successfully generated. Number of samples to run {len(primary_ids)}")
 
-
+    print(f"File {output_file} successfully generated. Number of samples to run {len(all_samples)}")
 HELP = """USAGE:
 python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
 python3 parse_cohort_files.py remove <input> [<output>]
