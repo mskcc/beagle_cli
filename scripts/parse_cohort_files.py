@@ -83,23 +83,20 @@ def ci_tags_to_primary_ids(samples, file_group):
     return primary_ids
 
 
-import os
-
-def parse_cohort_files(input_directory, output_file):
-    all_samples = []
-
-    for file in os.listdir(input_directory):
-        if file.endswith(".txt"):  
-            file_path = os.path.join(input_directory, file)
-            samples = get_list_of_samples_from_cohort_file(file_path)
-            all_samples.extend(samples)
-
-    # Write all samples to the output file
+def parse_cohort_file(input_files, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
+    all_primary_ids = []
+    for input_file in input_files:
+        # Parse cohort file
+        samples = get_list_of_samples_from_cohort_file(input_file)
+        # Convert from ciTags to primaryIds
+        primary_ids = ci_tags_to_primary_ids(samples, file_group)
+        all_primary_ids.extend(primary_ids)
     with open(output_file, "w") as f:
-        for sample in all_samples:
+        for sample in all_primary_ids:
             f.write(f"{sample}\n")
+    print(f"File {output_file} successfully generated. Number of samples to run {len(all_primary_ids)}")
 
-    print(f"File {output_file} successfully generated. Number of samples to run {len(all_samples)}")
+
 HELP = """USAGE:
 python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
 python3 parse_cohort_files.py remove <input> [<output>]
@@ -112,9 +109,9 @@ if __name__ == "__main__":
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_directory = sys.argv[2]
-        output_file = sys.argv[3]
-        parse_cohort_files(input_directory, output_file)
+        input_files = sys.argv[2:-1]  # all input files
+        output_file = sys.argv[-1]    # last argument
+        parse_cohort_file(input_files, output_file)
     elif command == "remove":
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
