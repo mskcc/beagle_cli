@@ -1,5 +1,6 @@
 import re
 import sys
+import os
 import bin.access_beagle_endpoint as beagle_api
 
 BEAGLE = beagle_api.AccessBeagleEndpoint()
@@ -97,10 +98,22 @@ def parse_cohort_file(input_files, output_file, file_group="b54d035d-f63c-4ea8-8
     print(f"File {output_file} successfully generated. Number of samples to run {len(all_sample_ids)}")
 
 
+def list_directories(directories, output_file):
+        all_directories = [f for f in os.listdir(directories) if os.path.isdir(os.path.join(directories, f))]
+
+        with open(output_file, "w") as f:
+            for directory in all_directories:
+                f.write(f"{directory}\n")
+        print(f"File {output_file} successfully generated. Number of directories in BAM folder {len(all_directories)}")
+
+
+ 
 HELP = """USAGE:
 python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
+python3 parse_cohort_files.py list_dir <directory> [<output>]
+
 """
 
 if __name__ == "__main__":
@@ -126,5 +139,12 @@ if __name__ == "__main__":
             create_check_script(input_file, output_file)
         else:
             create_check_script(input_file)
+    elif command == "list_dir":
+        directories = sys.argv[2]
+        if len(sys.argv) > 2:
+            output_file = sys.argv[3]
+            list_directories(directories, output_file)
+        else:
+            list_directories(directories)
     else:
         print(HELP)
