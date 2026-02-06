@@ -106,6 +106,27 @@ def list_directories(directories, output_file):
                 f.write(f"{directory}\n")
         print(f"File {output_file} successfully generated. Number of directories in BAM folder {len(all_directories)}")
 
+def compare_files(output_file_1, output_file_2, report_file):
+    # Read parsed output
+    with open(output_file_1) as f:
+        parsed_output = {line.strip() for line in f if line.strip()}
+
+    # Read directory listing output
+    with open(output_file_2) as f:
+        directory_output = {line.strip() for line in f if line.strip()}
+
+    # Compare
+    unique_to_parsed_output = parsed_output - directory_output
+    unique_to_directory_output = directory_output - parsed_output
+
+    # Write results to file
+    with open(report_file, "w") as f:
+        f.write("Elements only in parsed output:\n")
+        f.write("\n".join(sorted(unique_to_parsed_output)) + "\n\n")
+
+        f.write("Elements only in directory output:\n")
+        f.write("\n".join(sorted(unique_to_directory_output)) + "\n")
+
 
  
 HELP = """USAGE:
@@ -113,6 +134,7 @@ python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
 python3 parse_cohort_files.py list_dir <directory> [<output>]
+python3 parse_cohort_files.py compare_files <file1.txt> <file2.txt> [<output>]
 
 """
 
@@ -141,10 +163,16 @@ if __name__ == "__main__":
             create_check_script(input_file)
     elif command == "list_dir":
         directories = sys.argv[2]
-        if len(sys.argv) > 2:
+        if len(sys.argv) > 3:
             output_file = sys.argv[3]
             list_directories(directories, output_file)
         else:
             list_directories(directories)
+    elif command == "compare":
+        output_file_1 = sys.argv[2]
+        output_file_2 = sys.argv[3]
+        if len(sys.argv) > 4:
+            report_file = sys.argv[4]
+            compare_files(output_file_1, output_file_2, report_file)            
     else:
         print(HELP)
