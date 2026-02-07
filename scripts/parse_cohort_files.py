@@ -131,6 +131,7 @@ def compare_files(file1, file2, report_file):
  
 HELP = """USAGE:
 python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
+    - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
 python3 parse_cohort_files.py list_dir <directory> [<output>]
