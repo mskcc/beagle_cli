@@ -106,26 +106,38 @@ def list_directories(directories, output_file):
                 f.write(f"{directory}\n")
         print(f"File {output_file} successfully generated. Number of directories in BAM folder {len(all_directories)}")
 
-def compare_files(output_file_1, output_file_2, report_file):
-    # Read parsed output
-    with open(output_file_1) as f:
-        parsed_output = {line.strip() for line in f if line.strip()}
-
-    # Read directory listing output
-    with open(output_file_2) as f:
-        directory_output = {line.strip() for line in f if line.strip()}
-
-    # Compare
-    unique_to_parsed_output = parsed_output - directory_output
-    unique_to_directory_output = directory_output - parsed_output
-
-    # Write results to file
-    with open(report_file, "w") as f:
-        f.write("Elements only in parsed output:\n")
-        f.write("\n".join(sorted(unique_to_parsed_output)) + "\n\n")
-
-        f.write("Elements only in directory output:\n")
-        f.write("\n".join(sorted(unique_to_directory_output)) + "\n")
+def compare_files(file_1, file_2, report_file):
+    try:
+        # Read parsed output in read mode
+        with open(file_1, 'r') as f:  
+            output1 = {line.strip() for line in f if line.strip()}
+        
+        # Read directory listing output in read mode
+        with open(file_2, 'r') as f:  
+            output2 = {line.strip() for line in f if line.strip()}
+        
+        # Compare
+        unique_to_file1 = output1 - output2
+        unique_to_file2 = output2 - output1
+        
+        # Debugging prints to check the differences
+        print(f"Unique to {file_1}: {unique_to_file1}")
+        print(f"Unique to {file_2}: {unique_to_file2}")
+        
+        # Write results to file in write mode
+        with open(report_file, "w") as f:  # 'w' means write mode
+            f.write(f"Elements only in {file_1}:\n")
+            f.write("\n".join(sorted(unique_to_file1)) + "\n\n")
+            
+            f.write(f"Elements only in {file_2}:\n")
+            f.write("\n".join(sorted(unique_to_file2)) + "\n")
+        
+        print(f"Comparison complete. Results written to {report_file}")
+    
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 
  
@@ -134,7 +146,7 @@ python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
 python3 parse_cohort_files.py list_dir <directory> [<output>]
-python3 parse_cohort_files.py compare_files <file1.txt> <file2.txt> [<output>]
+python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
 
 """
 
@@ -169,10 +181,13 @@ if __name__ == "__main__":
         else:
             list_directories(directories)
     elif command == "compare":
-        output_file_1 = sys.argv[2]
-        output_file_2 = sys.argv[3]
-        if len(sys.argv) > 4:
-            report_file = sys.argv[4]
-            compare_files(output_file_1, output_file_2, report_file)            
+        if len(sys.argv) < 5:  # At least two files and one report file
+            print("Usage: python script.py compare file1 file2 report_file")
+            sys.exit(1)
+        file_1 = sys.argv[2]
+        file_2 = sys.argv[3]
+        report_file = sys.argv[4]
+        compare_files(file_1, file_2, report_file)
     else:
         print(HELP)
+        
