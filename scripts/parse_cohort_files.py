@@ -106,38 +106,26 @@ def list_directories(directories, output_file):
                 f.write(f"{directory}\n")
         print(f"File {output_file} successfully generated. Number of directories in BAM folder {len(all_directories)}")
 
-def compare_files(file_1, file_2, report_file):
-    try:
-        # Read parsed output in read mode
-        with open(file_1, 'r') as f:  
-            output1 = {line.strip() for line in f if line.strip()}
-        
-        # Read directory listing output in read mode
-        with open(file_2, 'r') as f:  
-            output2 = {line.strip() for line in f if line.strip()}
-        
-        # Compare
-        unique_to_file1 = output1 - output2
-        unique_to_file2 = output2 - output1
-        
-        # Debugging prints to check the differences
-        print(f"Unique to {file_1}: {unique_to_file1}")
-        print(f"Unique to {file_2}: {unique_to_file2}")
-        
-        # Write results to file in write mode
-        with open(report_file, "w") as f:  # 'w' means write mode
-            f.write(f"Elements only in {file_1}:\n")
-            f.write("\n".join(sorted(unique_to_file1)) + "\n\n")
-            
-            f.write(f"Elements only in {file_2}:\n")
-            f.write("\n".join(sorted(unique_to_file2)) + "\n")
-        
-        print(f"Comparison complete. Results written to {report_file}")
+def compare_files(file1, file2, report_file):
+    # Read file1 output
+    with open(file1) as f:
+        output1 = {line.strip() for line in f if line.strip()}
+  
+    # Read file2 output
+    with open(file2) as f:
+        output2 = {line.strip() for line in f if line.strip()}
+    # Compare
+    unique_to_file1 = output1 - output2
+    unique_to_file2 = output2 - output1
     
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    # Write results to files 
+    with open(report_file, "w") as f:
+        f.write(f"Elements only in {file1}:\n")
+        f.write("\n".join(sorted(unique_to_file1)) + "\n\n")
+
+        f.write(f"Elements only in {file2}:\n")
+        f.write("\n".join(sorted(unique_to_file2)) + "\n")
+
 
 
  
@@ -190,4 +178,4 @@ if __name__ == "__main__":
         compare_files(file_1, file_2, report_file)
     else:
         print(HELP)
-        
+    
