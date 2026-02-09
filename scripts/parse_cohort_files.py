@@ -84,7 +84,7 @@ def ci_tags_to_primary_ids(samples, file_group):
     return primary_ids
 
 
-def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
+def parse_cohort_file(input_files, output_file, directory_path=None, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
     all_sample_ids = []
     
     # Process cohort files
@@ -101,8 +101,10 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
     
     print(f"File {output_file} successfully generated. Number of samples to run: {len(all_sample_ids)}")
     
-    # List directories
-    all_directories = [f for f in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, f))]
+    # List directories (optional)
+    if directory_path:
+    
+        all_directories = [f for f in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, f))]
     
     # Compare outputs
     samples_set = set(all_sample_ids)
@@ -121,7 +123,7 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
 
  
 HELP = """USAGE:
-python3 parse_cohort_files.py parse <input> <directory_path> <output> [<file_group_id>]
+python3 parse_cohort_files.py parse <input> [<directory_path>] <output> [<file_group_id>]
     - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
@@ -131,14 +133,17 @@ python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
 """
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 4:
         print(HELP)
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_files = sys.argv[2] 
-        directory_path= sys.argv[3]
-        output_file = sys.argv[4]    
+        input_files = sys.argv[2:-2]
+        output_file = sys.argv[-1]
+    # directory is optional
+        if len(sys.argv) > 4 and os.path.isdir(sys.argv[-2]):
+            directory_path = sys.argv[-2]
+            input_files = sys.argv[2:-2]    
         parse_cohort_file(input_files, directory_path, output_file)
     elif command == "remove":
         input_file = sys.argv[2]
