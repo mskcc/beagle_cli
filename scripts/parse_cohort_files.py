@@ -84,53 +84,44 @@ def ci_tags_to_primary_ids(samples, file_group):
     return primary_ids
 
 
-def parse_cohort_file(input_files, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
+def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
     all_sample_ids = []
+    
+    # Process cohort files
     for input_file in input_files:
         # Parse cohort file
         samples = get_list_of_samples_from_cohort_file(input_file)
-        # Convert from ciTags to primaryIds
-        #primary_ids = ci_tags_to_primary_ids(samples, file_group)
+        # Convert from ciTags to primaryIds if needed
+        # primary_ids = ci_tags_to_primary_ids(samples, file_group)
         all_sample_ids.extend(samples)
+    
     with open(output_file, "w") as f:
         for sample in all_sample_ids:
             f.write(f"{sample}\n")
-    print(f"File {output_file} successfully generated. Number of samples to run {len(all_sample_ids)}")
-
-
-def list_directories(directories, output_file):
-        all_directories = [f for f in os.listdir(directories) if os.path.isdir(os.path.join(directories, f))]
-
-        with open(output_file, "w") as f:
-            for directory in all_directories:
-                f.write(f"{directory}\n")
-        print(f"File {output_file} successfully generated. Number of directories in BAM folder {len(all_directories)}")
-
-def compare_files(file1, file2, report_file):
-    # Read file1 output
-    with open(file1) as f:
-        output1 = {line.strip() for line in f if line.strip()}
-  
-    # Read file2 output
-    with open(file2) as f:
-        output2 = {line.strip() for line in f if line.strip()}
-    # Compare
-    unique_to_file1 = output1 - output2
-    unique_to_file2 = output2 - output1
     
-    # Write results to files 
-    with open(report_file, "w") as f:
-        f.write(f"Elements only in {file1}:\n")
-        f.write("\n".join(sorted(unique_to_file1)) + "\n\n")
+    print(f"File {output_file} successfully generated. Number of samples to run: {len(all_sample_ids)}")
+    
+    # List directories
+    all_directories = [f for f in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, f))]
+    
+    # Compare outputs
+    samples_set = set(all_sample_ids)
+    directories_set = set(all_directories)
+    
+    unique_to_samples = samples_set - directories_set
+    unique_to_directories = directories_set - samples_set
+    
+    print(f"Unique to samples: {unique_to_samples}")
+    print(f"Unique to directories: {unique_to_directories}")
 
-        f.write(f"Elements only in {file2}:\n")
-        f.write("\n".join(sorted(unique_to_file2)) + "\n")
-
-
+    return {
+        "unique_to_samples": unique_to_samples,
+        "unique_to_directories": unique_to_directories
+    }
 
  
 HELP = """USAGE:
-python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
+python3 parse_cohort_files.py parse <input> <directory_path> <output> [<file_group_id>]
     - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
@@ -140,14 +131,15 @@ python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
 """
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 5:
         print(HELP)
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_files = sys.argv[2:-1]  # all input files
-        output_file = sys.argv[-1]    # last argument
-        parse_cohort_file(input_files, output_file)
+        input_files = sys.argv[2] 
+        directory_path= sys.argv[3]
+        output_file = sys.argv[4]    
+        parse_cohort_file(input_files, directory_path, output_file)
     elif command == "remove":
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
@@ -161,22 +153,7 @@ if __name__ == "__main__":
             output_file = sys.argv[3]
             create_check_script(input_file, output_file)
         else:
-            create_check_script(input_file)
-    elif command == "list_dir":
-        directories = sys.argv[2]
-        if len(sys.argv) > 3:
-            output_file = sys.argv[3]
-            list_directories(directories, output_file)
-        else:
-            list_directories(directories)
-    elif command == "compare":
-        if len(sys.argv) < 5:  # At least two files and one report file
-            print("Usage: python script.py compare file1 file2 report_file")
-            sys.exit(1)
-        file_1 = sys.argv[2]
-        file_2 = sys.argv[3]
-        report_file = sys.argv[4]
-        compare_files(file_1, file_2, report_file)
+            create_check_script(input_file)   
     else:
         print(HELP)
     
