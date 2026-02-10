@@ -89,16 +89,14 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
     
     # Process cohort files
     for input_file in input_files:
-        # Parse cohort file
         samples = get_list_of_samples_from_cohort_file(input_file)
-        # Convert from ciTags to primaryIds if needed
-        # primary_ids = ci_tags_to_primary_ids(samples, file_group)
         all_sample_ids.extend(samples)
-    
+
+    # Write all parsed sample names to output file
     with open(output_file, "w") as f:
         for sample in all_sample_ids:
             f.write(f"{sample}\n")
-    
+ 
     print(f"File {output_file} successfully generated. Number of samples to run: {len(all_sample_ids)}")
     
     # List directories
@@ -109,16 +107,27 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
     directories_set = set(all_directories)
     
     unique_to_samples = samples_set - directories_set
-    print(f"Unique to samples: {unique_to_samples}")
+    #print(f"Unique to samples: {unique_to_samples}")
 
-    missing_sample_ids = cmo_sample_name_to_primary_ids(
-    list(unique_to_samples),
-    file_group
-)
+    
+    # Convert missing sample names to primaryIds
+    primary_ids = cmo_sample_name_to_primary_ids(
+        list(unique_to_samples),
+        file_group
+    )
 
+    # Append missing primaryIds to the same output file
+    with open(output_file, "a") as f:
+        f.write("\n# Missing primaryIds\n")
+        for primary_id in primary_ids:
+            f.write(f"{primary_id}\n")
+
+    print(f"Appended {len(primary_ids)} missing primaryIds to {output_file}")
+
+    # Return both sets for downstream use if needed
     return {
         "unique_to_samples": unique_to_samples,
-        "missing_sample_ids": missing_sample_ids,
+        "primary_ids": primary_ids,
     }
 
  
