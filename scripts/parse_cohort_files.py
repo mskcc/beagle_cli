@@ -63,23 +63,23 @@ def get_list_of_samples_from_cohort_file(file_path):
     return list(samples)
 
 
-def ci_tags_to_primary_ids(samples, file_group):
+def cmo_sample_name_to_primary_ids(samples, file_group):
     """
     Args:
-        samples: list of ciTags
+        samples: list of cmoSampleName
 
     Returns:
 
     """
     total_number_of_samples = len(samples)
     primary_ids = []
-    for idx, ci_tag in enumerate(samples, start=1):
-        files = BEAGLE.get_files_by_metadata(f"ciTag:{ci_tag}", file_group)
+    for idx, cmo_sample_name in enumerate(samples, start=1):
+        files = BEAGLE.get_files_by_metadata(f"cmoSampleName:{cmo_sample_name}", file_group)
         if not files:
-            print(f"Unable to locate ciTag:{ci_tag}")
+            print(f"Unable to locate cmoSampleName:{cmo_sample_name}")
             continue
         primary_id = files[0]["metadata"]["primaryId"]
-        print(f"Fetching {ci_tag}:{primary_id}. Remaining {total_number_of_samples - idx}...")
+        print(f"Fetching {cmo_sample_name}:{primary_id}. Remaining {total_number_of_samples - idx}...")
         primary_ids.append(primary_id)
     return primary_ids
 
@@ -109,14 +109,16 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
     directories_set = set(all_directories)
     
     unique_to_samples = samples_set - directories_set
-    unique_to_directories = directories_set - samples_set
-    
     print(f"Unique to samples: {unique_to_samples}")
-    print(f"Unique to directories: {unique_to_directories}")
+
+    missing_sample_ids = cmo_sample_name_to_primary_ids(
+    list(unique_to_samples),
+    file_group
+)
 
     return {
         "unique_to_samples": unique_to_samples,
-        "unique_to_directories": unique_to_directories
+        "missing_sample_ids": missing_sample_ids,
     }
 
  
