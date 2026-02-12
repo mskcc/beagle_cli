@@ -84,7 +84,7 @@ def cmo_sample_name_to_primary_ids(samples, file_group):
     return primary_ids
 
 
-def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
+def parse_cohort_file(input_files, directory_path, output_file, diff_output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
     all_sample_ids = []
     
     # Process cohort files
@@ -116,13 +116,12 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
         file_group
     )
 
-    # Append missing primaryIds to the same output file
-    with open(output_file, "a") as f:
-        f.write("\n# Missing primaryIds\n")
+    # Write missing primaryIds to the different output file
+    with open(diff_output_file, "w") as f:
         for primary_id in primary_ids:
             f.write(f"{primary_id}\n")
 
-    print(f"Appended {len(primary_ids)} missing primaryIds to {output_file}")
+    print(f"File {diff_output_file} successfully generated. Number of samples missing: {len(unique_to_samples)}")
 
     # Return both sets for downstream use if needed
     return {
@@ -132,8 +131,9 @@ def parse_cohort_file(input_files, directory_path, output_file, file_group="b54d
 
  
 HELP = """USAGE:
-python3 parse_cohort_files.py parse <input> <directory_path> <output> [<file_group_id>]
+python3 parse_cohort_files.py parse <input_files> <directory_path> <parse_output> <diff_output> [<file_group_id>]
     - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
+    - <directory_path> is the path containing existing directories to compare
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
 python3 parse_cohort_files.py list_dir <directory> [<output>]
@@ -142,15 +142,16 @@ python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
 """
 
 if __name__ == "__main__":
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 6:
         print(HELP)
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_files = sys.argv[2:-2] 
-        directory_path = sys.argv[-2]
-        output_file = sys.argv[-1]    
-        parse_cohort_file(input_files, directory_path, output_file)
+        input_files = sys.argv[2:-3] 
+        directory_path = sys.argv[-3]
+        output_file = sys.argv[-2]   
+        diff_output_file = sys.argv[-1] 
+        parse_cohort_file(input_files, directory_path, output_file, diff_output_file)
     elif command == "remove":
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
