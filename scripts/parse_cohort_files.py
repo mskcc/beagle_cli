@@ -107,9 +107,8 @@ def parse_cohort_file(input_files, directory_path, output_file, diff_output_file
     directories_set = set(all_directories)
     
     unique_to_samples = samples_set - directories_set
-    #print(f"Unique to samples: {unique_to_samples}")
-
     
+
     # Convert missing sample names to primaryIds
     primary_ids = cmo_sample_name_to_primary_ids(
         list(unique_to_samples),
