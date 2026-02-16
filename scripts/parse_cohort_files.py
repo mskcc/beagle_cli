@@ -1,5 +1,6 @@
 import re
 import sys
+import os
 import bin.access_beagle_endpoint as beagle_api
 
 BEAGLE = beagle_api.AccessBeagleEndpoint()
@@ -62,53 +63,94 @@ def get_list_of_samples_from_cohort_file(file_path):
     return list(samples)
 
 
-def ci_tags_to_primary_ids(samples, file_group):
+def cmo_sample_name_to_primary_ids(samples, file_group):
     """
     Args:
-        samples: list of ciTags
+        samples: list of cmoSampleName
 
     Returns:
 
     """
     total_number_of_samples = len(samples)
     primary_ids = []
-    for idx, ci_tag in enumerate(samples, start=1):
-        files = BEAGLE.get_files_by_metadata(f"ciTag:{ci_tag}", file_group)
+    for idx, cmo_sample_name in enumerate(samples, start=1):
+        files = BEAGLE.get_files_by_metadata(f"cmoSampleName:{cmo_sample_name}", file_group)
         if not files:
-            print(f"Unable to locate ciTag:{ci_tag}")
+            print(f"Unable to locate cmoSampleName:{cmo_sample_name}")
             continue
         primary_id = files[0]["metadata"]["primaryId"]
-        print(f"Fetching {ci_tag}:{primary_id}. Remaining {total_number_of_samples - idx}...")
+        print(f"Fetching {cmo_sample_name}:{primary_id}. Remaining {total_number_of_samples - idx}...")
         primary_ids.append(primary_id)
     return primary_ids
 
 
-def parse_cohort_file(input_file, output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
-    # Parse cohort file
-    samples = get_list_of_samples_from_cohort_file(input_file)
-    # Convert from ciTags to primaryIds
-    primary_ids = ci_tags_to_primary_ids(samples, file_group)
+def parse_cohort_file(input_files, directory_path, output_file, diff_output_file, file_group="b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"):
+    all_sample_ids = []
+    
+    # Process cohort files
+    for input_file in input_files:
+        samples = get_list_of_samples_from_cohort_file(input_file)
+        all_sample_ids.extend(samples)
+
+    # Write all parsed sample names to output file
     with open(output_file, "w") as f:
-        for sample in primary_ids:
+        for sample in all_sample_ids:
             f.write(f"{sample}\n")
-    print(f"File {output_file} successfully generated. Number of samples to run {len(primary_ids)}")
+ 
+    print(f"File {output_file} successfully generated. Number of samples to run: {len(all_sample_ids)}")
+    
+    # List directories
+    all_directories = [f for f in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, f))]
+    
+    # Compare outputs
+    samples_set = set(all_sample_ids)
+    directories_set = set(all_directories)
+    
+    unique_to_samples = samples_set - directories_set
+    
 
+    # Convert missing sample names to primaryIds
+    primary_ids = cmo_sample_name_to_primary_ids(
+        list(unique_to_samples),
+        file_group
+    )
 
+    # Write missing primaryIds to the different output file
+    with open(diff_output_file, "w") as f:
+        for primary_id in primary_ids:
+            f.write(f"{primary_id}\n")
+
+    print(f"File {diff_output_file} successfully generated. Number of samples missing: {len(unique_to_samples)}")
+
+    # Return both sets for downstream use if needed
+    return {
+        "unique_to_samples": unique_to_samples,
+        "primary_ids": primary_ids,
+    }
+
+ 
 HELP = """USAGE:
-python3 parse_cohort_files.py parse <input> <output> [<file_group_id>]
+python3 parse_cohort_files.py parse <input_files> <directory_path> <parse_output> <diff_output> [<file_group_id>]
+    - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
+    - <directory_path> is the path containing existing directories to compare
 python3 parse_cohort_files.py remove <input> [<output>]
 python3 parse_cohort_files.py check <input> [<output>]
+python3 parse_cohort_files.py list_dir <directory> [<output>]
+python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
+
 """
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 6:
         print(HELP)
         exit(1)
     command = sys.argv[1]
     if command == "parse":
-        input_file = sys.argv[2]
-        output_file = sys.argv[3]
-        parse_cohort_file(input_file, output_file)
+        input_files = sys.argv[2:-3] 
+        directory_path = sys.argv[-3]
+        output_file = sys.argv[-2]   
+        diff_output_file = sys.argv[-1] 
+        parse_cohort_file(input_files, directory_path, output_file, diff_output_file)
     elif command == "remove":
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
@@ -122,6 +164,7 @@ if __name__ == "__main__":
             output_file = sys.argv[3]
             create_check_script(input_file, output_file)
         else:
-            create_check_script(input_file)
+            create_check_script(input_file)   
     else:
         print(HELP)
+    
