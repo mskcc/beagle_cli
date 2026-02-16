@@ -57,9 +57,13 @@ def get_list_of_samples_from_cohort_file(file_path):
     filtered_list = [s.rstrip() for s in lines if not s.startswith('#')]
     for line in filtered_list:
         cleaned_content = re.sub(r'\s+', '\t', line)
-        t, n = cleaned_content.split("\t")
-        samples.add(t)
-        samples.add(n)
+        if "\t" in cleaned_content:
+            t, n = cleaned_content.split("\t")
+            samples.add(t)
+            samples.add(n)
+        else:
+            samples.add(cleaned_content)
+            
     return list(samples)
 
 
@@ -108,7 +112,6 @@ def parse_cohort_file(input_files, directory_path, output_file, diff_output_file
     
     unique_to_samples = samples_set - directories_set
     
-
     # Convert missing sample names to primaryIds
     primary_ids = cmo_sample_name_to_primary_ids(
         list(unique_to_samples),
