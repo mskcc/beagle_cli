@@ -56,13 +56,10 @@ if __name__ == "__main__":
     REQUEST_ID = sys.argv[1]
     OUTSCRIPT = sys.argv[2]
     files_to_deregister = set(BEAGLE.get_file_ids(REQUEST_ID))
-    runs_to_deregister = set()
 
     files_to_deregister = list(files_to_deregister)
     num_files_to_deregister = len(files_to_deregister)
-    num_runs_to_deregister = len(runs_to_deregister)
-    print("Got %i files and %i runs to deregister. See beaglecli command output to execute."
-            % (num_files_to_deregister,num_runs_to_deregister))
+    print(f"Got {num_files_to_deregister} files to deregister. See beaglecli command output to execute.")
 
     with open(OUTSCRIPT, 'w') as output_file:
         for i in files_to_deregister:
