@@ -81,11 +81,14 @@ class AccessBeagleEndpoint:
 
     def post_url(self, url, payload):
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
-        response = requests.post(
-            url, auth=self.auth, verify=False, json=payload, headers=headers
-        )
-        if not response.ok:
-            raise RuntimeError(f"POST failed: {response.status_code} {response.text}")
+        try:
+            response = requests.post(
+                url, auth=self.auth, verify=False, json=payload, headers=headers
+            )
+            if not response.ok:
+                raise RuntimeError(f"POST failed: {response.status_code} {response.text}")
+        except RuntimeError as e:
+            print(f"An error occurred during the POST request: {e}")
 
     def put_metadata_into_file(self, file_id, metadata):
         url = "%s/v0/fs/files/%s" % (self.API, file_id)
