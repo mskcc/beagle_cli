@@ -16,7 +16,10 @@ def dupe_files(source_slug, dest_slug, request_id, **kwargs):
         file_type = file_meta["file_type"]
         file_path = file_meta["path"]
         file_metadata = file_meta["metadata"]
+
+        file_metadata.update(kwargs)
         file_group_id = endpoint.get_file_group_id_by_slug(dest_slug)
+        print(f"Adding {file_path} to file group {dest_slug}.")
         endpoint.post_file_to_filegroup(path=file_path,file_type=file_type,metadata=file_metadata,file_group=file_group_id)
 
 if __name__ == "__main__":
