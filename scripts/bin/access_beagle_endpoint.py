@@ -13,7 +13,7 @@ class AccessBeagleEndpoint:
         self.auth = HTTPBasicAuth(username, password)
         self.API = BEAGLE_ENDPOINT
 
-    def run_url(self, url):
+    def url_get(self, url):
         """
         Runs the url, which should contain all the parameters we'd need
         """
@@ -30,7 +30,7 @@ class AccessBeagleEndpoint:
                 request_id,
             )
         )
-        data = self.run_url(url)
+        data = self.url_get(url)
         file_ids = list()
         for result in data["results"]:
             file_ids.append(result["id"])
@@ -43,7 +43,7 @@ class AccessBeagleEndpoint:
             fg,
             path,
         )
-        data = self.run_url(url)["results"]
+        data = self.url_get(url)["results"]
         if len(data) > 1:
             print("Error retrieving file_id by path; multiple entries found")
         if "id" in data:
@@ -51,7 +51,7 @@ class AccessBeagleEndpoint:
 
     def get_storage_all(self):
         url = "%s/v0/fs/storage/" % self.API
-        data = self.run_url(url)["results"]
+        data = self.url_get(url)["results"]
         return data
 
     def get_storage_id_by_name(self, name):
@@ -64,19 +64,40 @@ class AccessBeagleEndpoint:
 
     def get_file_group_id_by_slug(self, s):
         url = "%s/v0/fs/file-groups/%s" % (self.API, s)
-        response = self.run_url(url)
+        response = self.url_get(url)
         if response.get("detail") == "Not found.":
             pass
         else:
             id_value = response["id"]
             return id_value
 
-    def put_metadata_into_file(self, file_id, metadata):
-        url = "%s/v0/fs/files/%s" % (self.API, file_id)
-        payload = {"metadata": metadata}
+    def put_url(self, url, payload):
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         response = requests.put(
             url + "/", auth=self.auth, verify=False, json=payload, headers=headers
         )
         if not response.ok:
             raise RuntimeError(f"PUT failed: {response.status_code} {response.text}")
+
+    def post_url(self, url, payload):
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        response = requests.post(
+            url, auth=self.auth, verify=False, json=payload, headers=headers
+        )
+        if not response.ok:
+            raise RuntimeError(f"POST failed: {response.status_code} {response.text}")
+
+    def put_metadata_into_file(self, file_id, metadata):
+        url = "%s/v0/fs/files/%s" % (self.API, file_id)
+        payload = {"metadata": metadata}
+        self.put_url(url, payload)
+
+    def post_file_to_filegroup(self, path, file_type, metadata, file_group):
+        url = "%s/v0/fs/files/" % (self.API)
+        payload = {"path": path, "file_type": file_type, "metadata": metadata, "file_group": file_group}
+        self.post_url(url, payload)
+
+    def get_file_metadata(self, file_id):
+        url = "%s/v0/fs/files/%s" % (self.API, file_id)
+        data = self.url_get(url)
+        return data
