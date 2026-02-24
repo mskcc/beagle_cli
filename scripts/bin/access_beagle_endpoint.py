@@ -68,3 +68,14 @@ class AccessBeagleEndpoint:
         else:
             id_value = response["id"]
             return id_value
+
+    def put_metadata_into_file(self, file_id, metadata):
+        url = "%s/v0/fs/files/%s" % (self.API, file_id)
+        payload = {"metadata": metadata}
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+        response = requests.put(url + "/", auth=self.auth, verify=False, json=payload, headers=headers)
+        if not response.ok:
+            raise RuntimeError(f"PUT failed: {response.status_code} {response.text}")
