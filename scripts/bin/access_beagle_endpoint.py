@@ -1,4 +1,6 @@
+# pyright: ignore[reportMissingImports]
 import requests
+from requests.auth import HTTPBasicAuth
 import sys, os
 import json
 
@@ -8,7 +10,7 @@ class AccessBeagleEndpoint:
         username = os.environ["BEAGLE_USER"]
         password = os.environ["BEAGLE_PW"]
         BEAGLE_ENDPOINT = os.environ["BEAGLE_ENDPOINT"]
-        self.auth = requests.auth.HTTPBasicAuth(username, password)
+        self.auth = HTTPBasicAuth(username, password)
         self.API = BEAGLE_ENDPOINT
 
     def run_url(self, url):
@@ -72,10 +74,9 @@ class AccessBeagleEndpoint:
     def put_metadata_into_file(self, file_id, metadata):
         url = "%s/v0/fs/files/%s" % (self.API, file_id)
         payload = {"metadata": metadata}
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
-        response = requests.put(url + "/", auth=self.auth, verify=False, json=payload, headers=headers)
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        response = requests.put(
+            url + "/", auth=self.auth, verify=False, json=payload, headers=headers
+        )
         if not response.ok:
             raise RuntimeError(f"PUT failed: {response.status_code} {response.text}")
