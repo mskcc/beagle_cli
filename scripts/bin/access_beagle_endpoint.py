@@ -31,6 +31,26 @@ class AccessBeagleEndpoint:
         print(f"Status {req.status_code}")
         return req
 
+#    def post_url(self, url, payload):
+#        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+#        try:
+#            response = requests.post(
+#                url, auth=self.auth, verify=False, json=payload, headers=headers
+#            )
+#            if not response.ok:
+#                raise RuntimeError(f"POST failed: {response.status_code} {response.text}")
+#        except RuntimeError as e:
+#            print(f"An error occurred during the POST request: {e}")
+
+
+    def put_url(self, url, payload):
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        response = requests.put(
+            url + "/", auth=self.auth, verify=False, json=payload, headers=headers
+        )
+        if not response.ok:
+            raise RuntimeError(f"PUT failed: {response.status_code} {response.text}")
+
     # had to build url weird because the requests docs were busted and I kept running into issues
     def get_etl_jobs_by_request(self, request_id):
         url = "%s/v0/etl/jobs/?page_size=1000&request_id=%s" % (self.API, request_id)
@@ -40,21 +60,71 @@ class AccessBeagleEndpoint:
         url = "%s/v0/etl/jobs/%s" % (self.API, run_id)
         return self.run_url(url)
 
-    def get_file_ids(self, request_id):
-        url = "%s/v0/fs/files/?page_size=1000&metadata=igoRequestId:%s" % (self.API, request_id)
+    def get_file_ids(self, request_id, fg_slug="lims"):
+        fg = self.get_file_group_id_by_slug(fg_slug)
+        url = (
+            "%s/v0/fs/files/?file_group=%s&page_size=1000&metadata=igoRequestId:%s"
+            % (
+                self.API,
+                fg,
+                request_id,
+            )
+        )
         data = self.run_url(url)
         file_ids = list()
-        for result in data['results']:
-            file_ids.append(result['id'])
+        for result in data["results"]:
+            file_ids.append(result["id"])
         return file_ids
 
-    def get_file_id_by_path(self, path):
-        url = "%s/v0/fs/files/?page_size=1000&path=%s" % (self.API, path)
-        data = self.run_url(url)['results']
+    def get_file_id_by_path(self, path, fg_slug="lims"):
+        fg = self.get_file_group_id_by_slug(fg_slug)
+        url = "%s/v0/fs/files/?file_group=%s&page_size=1000&path=%s" % (
+            self.API,
+            fg,
+            path,
+        )
+        data = self.run_url(url)["results"]
         if len(data) > 1:
             print("Error retrieving file_id by path; multiple entries found")
-        if 'id' in data:
-            return data['id']
+        if "id" in data:
+            return data["id"]
+
+    def get_storage_all(self):
+        url = "%s/v0/fs/storage/" % self.API
+        data = self.run_url(url)["results"]
+        return data
+
+    def get_storage_id_by_name(self, name):
+        storage_all = self.get_storage_all()
+        for i in storage_all:
+            storage_name = i["name"]
+            if storage_name == name:
+                return i["id"]
+        return None
+
+    def get_file_group_id_by_slug(self, s):
+        url = "%s/v0/fs/file-groups/%s" % (self.API, s)
+        response = self.run_url(url)
+        if response.get("detail") == "Not found.":
+            pass
+        else:
+            id_value = response["id"]
+            return id_value
+
+    def put_metadata_into_file(self, file_id, metadata):
+        url = "%s/v0/fs/files/%s" % (self.API, file_id)
+        payload = {"metadata": metadata}
+        self.put_url(url, payload)
+
+    def post_file_to_filegroup(self, path, file_type, metadata, file_group):
+        url = "%s/v0/fs/files/" % (self.API)
+        payload = {"path": path, "file_type": file_type, "metadata": metadata, "file_group": file_group}
+        self.post_url(url, payload)
+
+    def get_file_metadata(self, file_id):
+        url = "%s/v0/fs/files/%s" % (self.API, file_id)
+        data = self.run_url(url)
+        return data
 
     def get_files_by_metadata(self, key_val, file_group):
         url = f"{self.API}/v0/fs/files/?metadata={key_val}&file_group={file_group}&page_size=1000"
