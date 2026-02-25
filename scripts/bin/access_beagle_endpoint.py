@@ -31,18 +31,6 @@ class AccessBeagleEndpoint:
         print(f"Status {req.status_code}")
         return req
 
-#    def post_url(self, url, payload):
-#        headers = {"Accept": "application/json", "Content-Type": "application/json"}
-#        try:
-#            response = requests.post(
-#                url, auth=self.auth, verify=False, json=payload, headers=headers
-#            )
-#            if not response.ok:
-#                raise RuntimeError(f"POST failed: {response.status_code} {response.text}")
-#        except RuntimeError as e:
-#            print(f"An error occurred during the POST request: {e}")
-
-
     def put_url(self, url, payload):
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         response = requests.put(
