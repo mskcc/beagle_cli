@@ -1,10 +1,6 @@
 import os
 import argparse
-from dotenv import load_dotenv
 from bin.access_beagle_endpoint import AccessBeagleEndpoint
-
-# Load environment variables from .env file
-load_dotenv()
 
 def dupe_files(source_slug, dest_slug, request_id, **kwargs):
     endpoint = AccessBeagleEndpoint()
