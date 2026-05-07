@@ -49,3 +49,47 @@ In this command:
 - `tmp-fg` is the filegroup slug to which files should be copied.
 - `12345` is the ID of the request for which the files belong.
 - `runId=ABCD_123 runMode="XSeq"` are optional key-value pairs that can be added as metadata when copying files.
+
+## parse_cohort_files.py  
+This script is typically used before submitting Tempo Jobs for alignment.    
+There are three commands in this script.  
+-`Parse` Creates the input file to run Tempo jobs by comparing the cohort directory with bams and parsing the differences.  
+-`Check` Creates a script do those file exist.   
+-`Remove` Creates a scripts which deletes the files.  
+
+Usage:  
+
+Prerequisite:  
+
+    Switch to tempobot for access to cohort directory:
+         source /usersoftware/core006/dodzdo.sh  
+    
+    Activate conda environemt:  
+         conda activate py37  
+
+    Set enviornment variables:
+        - BEAGLE_USER
+        - BEAGLE_PW
+        - BEAGLE_ENDPOINT
+
+Here is an example for parse_cohort_files.py *parse* command:
+```
+
+python3 parse_cohort_files.py parse <input_files> <directory_path> <parse_output> <diff_output> [<file_group_id>]
+    - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
+    - <directory_path> is the path containing existing directories to compare  
+    
+python3 parse_cohort_files.py parse /data1/core006/ccs_pipelines/tempo/wes_repo/Results/v2.1.x/cohort_level/*.txt /data1/core006/ccs_pipelines/tempo/wes_repo/Results/v2.1.x/bams/ parse_output.txt diff_output.txt
+```
+Here is an example for parse_cohort_files *check* command:
+```
+python3 parse_cohort_files.py check <input> [<output>]  
+
+python3 parse_cohort_files.py check CCS_F00000.cohort.txt CCS_F00000.cohort.check.sh
+```
+Here is an example for parse_cohort_files *remove* command:
+```
+python3 parse_cohort_files.py remove <input> [<output>]
+
+python3 parse_cohort_files.py remove CCS_F00000.cohort.txt CCS_F00000.cohort.remove_file.sh
+```
