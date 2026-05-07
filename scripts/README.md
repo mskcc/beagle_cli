@@ -93,3 +93,14 @@ python3 parse_cohort_files.py remove <input> [<output>]
 
 python3 parse_cohort_files.py remove CCS_F00000.cohort.txt CCS_F00000.cohort.remove_file.sh
 ```
+## submit_tempo_jobs.py  
+
+The submit_tempo_jobs.py script is used to submit tempo jobs to voyager using the <diff_output> file created from the parse command.
+
+Here is a usage example of submit_tempo_jobs:
+
+```
+python submit_tempo_jobs.py diff_output.txt CCS_F00000  
+
+python submit_tempo_jobs.py <diff_output> <cohort_id> [<job_group_id>]
+```
