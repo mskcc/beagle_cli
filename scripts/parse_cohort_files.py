@@ -144,17 +144,23 @@ python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
 """
 
 if __name__ == "__main__":
-    if len(sys.argv) < 6:
+    if len(sys.argv) < 2:
         print(HELP)
         exit(1)
     command = sys.argv[1]
     if command == "parse":
+        if len(sys.argv) < 6:
+            print(HELP)
+            exit(1)
         input_files = sys.argv[2:-3] 
         directory_path = sys.argv[-3]
         output_file = sys.argv[-2]   
         diff_output_file = sys.argv[-1] 
         parse_cohort_file(input_files, directory_path, output_file, diff_output_file)
     elif command == "remove":
+        if len(sys.argv) < 3:
+            print(HELP)
+            exit(1)
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
             output_file = sys.argv[3]
@@ -162,6 +168,9 @@ if __name__ == "__main__":
         else:
             create_remove_script(input_file)
     elif command == "check":
+        if len(sys.argv) < 3:
+            print(HELP)
+            exit(1)
         input_file = sys.argv[2]
         if len(sys.argv) > 2:
             output_file = sys.argv[3]
@@ -170,4 +179,3 @@ if __name__ == "__main__":
             create_check_script(input_file)   
     else:
         print(HELP)
-    
