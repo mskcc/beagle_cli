@@ -54,7 +54,7 @@ In this command:
 This script is typically used before submitting Tempo Jobs for alignment.    
 There are three commands in this script.  
 -`Parse` Creates the input file to run Tempo jobs by comparing the cohort directory with bams and parsing the differences.  
--`Check` Creates a script do those file exist.   
+-`Check` Creates a script to check if files exist.   
 -`Remove` Creates a scripts which deletes the files.  
 
 Usage:  
@@ -64,7 +64,7 @@ Prerequisite:
     Switch to tempobot for access to cohort directory:
          source /usersoftware/core006/dodzdo.sh  
     
-    Activate conda environemt:  
+    Activate conda environment:  
          conda activate py37  
 
     Set enviornment variables:
@@ -83,13 +83,13 @@ python3 parse_cohort_files.py parse /data1/core006/ccs_pipelines/tempo/wes_repo/
 ```
 Here is an example for parse_cohort_files *check* command:
 ```
-python3 parse_cohort_files.py check <input> [<output>]  
+python3 parse_cohort_files.py check <input> <output>  
 
 python3 parse_cohort_files.py check CCS_F00000.cohort.txt CCS_F00000.cohort.check.sh
 ```
 Here is an example for parse_cohort_files *remove* command:
 ```
-python3 parse_cohort_files.py remove <input> [<output>]
+python3 parse_cohort_files.py remove <input> <output>
 
 python3 parse_cohort_files.py remove CCS_F00000.cohort.txt CCS_F00000.cohort.remove_file.sh
 ```
