@@ -136,10 +136,8 @@ HELP = """USAGE:
 python3 parse_cohort_files.py parse <input_files> <directory_path> <parse_output> <diff_output> [<file_group_id>]
     - <input_files> can be a single file, multiple files, or a wildcard (e.g., /path/to/files/*.txt)
     - <directory_path> is the path containing existing directories to compare
-python3 parse_cohort_files.py remove <input> [<output>]
-python3 parse_cohort_files.py check <input> [<output>]
-python3 parse_cohort_files.py list_dir <directory> [<output>]
-python3 parse_cohort_files.py compare <file1.txt> <file2.txt> <report_file>
+python3 parse_cohort_files.py remove <input> <output>
+python3 parse_cohort_files.py check <input> <output>
 
 """
 
@@ -158,7 +156,7 @@ if __name__ == "__main__":
         diff_output_file = sys.argv[-1] 
         parse_cohort_file(input_files, directory_path, output_file, diff_output_file)
     elif command == "remove":
-        if len(sys.argv) < 3:
+        if len(sys.argv) != 4:
             print(HELP)
             exit(1)
         input_file = sys.argv[2]
@@ -168,7 +166,7 @@ if __name__ == "__main__":
         else:
             create_remove_script(input_file)
     elif command == "check":
-        if len(sys.argv) < 3:
+        if len(sys.argv) != 4:
             print(HELP)
             exit(1)
         input_file = sys.argv[2]
