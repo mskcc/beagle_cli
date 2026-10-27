@@ -183,7 +183,7 @@ def get_arguments(arguments):
     uncompleted_runs = arguments.get('--uncompleted-runs') or False
     all_runs = arguments.get('--all-runs')
     delete = arguments.get('--delete') or False
-    app_prefix = arguments.get('--app-prefix') or None
+    app_prefix = arguments.get('--app-prefix') or ''
     if all_runs and delete is False:
         raise ValueError("The --all-runs flag must be used with the --delete flag to avoid accidental linking of multiple runs.")
     if request_ids_file: 
