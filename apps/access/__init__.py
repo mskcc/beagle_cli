@@ -55,7 +55,8 @@ def link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app
     if arguments.get('link'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
-            app_name = f'{app_prefix} {app_name}' 
+            if app_prefix:
+                app_name = f'{app_prefix} {app_name}'
             all_requests = arguments.get("--all-requests") or False
             tags = build_params(sample_id, request, app_name,all_requests, use_json_tags=False)
             operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
@@ -125,8 +126,6 @@ def get_operator_run(app_name, arguments, app_version=None, tags=None, config=No
     response = requests.get(urljoin(config['beagle_endpoint'], config['api']['operator-runs']),
                             headers={'Authorization': 'Bearer %s' % config['token']},
                             params=latest_operator_run)
-    latest_runs = response.json()["results"] 
-
     try:
         latest_runs = response.json()["results"] 
     except:
