@@ -30,7 +30,10 @@ FLAG_TO_APPS = {
     "bams_heme": ("heme nucleo", "bams"),
     "qc_heme": ("heme nucleo qc", "quality_control"),
     "qc_agg_heme": ("heme nucleo qc agg", "quality_control_aggregate"),
-    "chipvar_heme": ("Heme Chip-Var","chipvar")
+    "chipvar_heme": ("Heme Chip-Var","chipvar"),
+    "snv_heme":("access heme legacy SNV", "small_variants"),
+    "sv_heme":("access heme legacy SV", "structural_variants"),
+    "cnv_heme":("access heme legacy CNV", "copy_number_variants")
 }
 
 
@@ -122,6 +125,7 @@ def get_operator_run(app_name, arguments, app_version=None, tags=None, config=No
                             headers={'Authorization': 'Bearer %s' % config['token']},
                             params=latest_operator_run)
     latest_runs = response.json()["results"] 
+
     if not latest_runs:
         if "igoRequestId" in tags:
             new_tag = tags.replace("igoRequestId", "requestId")
@@ -179,7 +183,7 @@ def get_arguments(arguments):
     uncompleted_runs = arguments.get('--uncompleted-runs') or False
     all_runs = arguments.get('--all-runs')
     delete = arguments.get('--delete') or False
-    app_prefix = arguments.get('--app-prefix') or None
+    app_prefix = arguments.get('--app-prefix') or ''
     if all_runs and delete is False:
         raise ValueError("The --all-runs flag must be used with the --delete flag to avoid accidental linking of multiple runs.")
     if request_ids_file: 

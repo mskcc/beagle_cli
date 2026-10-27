@@ -35,7 +35,7 @@ from apps.lims import lims_commands
 from apps.cleaning import clean_json_comands
 
 
-BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://isvvoyagerstage01.mskcc.org:4007')
+BEAGLE_ENDPOINT = os.environ.get('BEAGLE_ENDPOINT', 'http://isvvoyagerprod01.mskcc.org:5007')
 BEAGLE_USER = os.environ.get('BEAGLE_USER', '')
 BEAGLE_PW = os.environ.get('BEAGLE_PW', '')
 
