@@ -35,15 +35,16 @@ FLAG_TO_APPS = {
     "sv_heme":("access heme legacy SV", "structural_variants"),
     "cnv_heme":("access heme legacy CNV", "copy_number_variants")
 }
-
+REQUEST_PATIENT_APPS = ['access v2 nucleo qc agg', 'cmo_manifest', "CMO-CH QC Agg", "heme nucleo qc agg",'JUNO PIPELINE: access v2 nucleo qc agg', 'JUNO PIPELINE: cmo_manifest', "JUNO PIPELINE: CMO-CH QC Agg", "JUNO PIPELINE: heme nucleo qc agg"]
 
 def access_commands(arguments, config):
     print('Running Linking')    
     request_ids, sample_id, apps, uncompleted_runs, app_prefix = get_arguments(arguments)
-    if arguments.get('--all-requests'):
+    if arguments.get('--all-requests') and not arguments.get('--request-ids'):
         request = None
+        # request = request_ids[0]
         link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app_prefix)
-    elif arguments.get('--request-ids'): 
+    elif arguments.get('--request-ids') and not arguments.get('--all-requests'): 
         for request in request_ids:  
             link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app_prefix)
     else:
@@ -77,7 +78,7 @@ def link_runs(apps, arguments, request, sample_id, config, uncompleted_runs, app
             operator_runs = get_operator_run(app_name, arguments, app_version, tags, config, uncompleted_runs)
             # operator_runs = operator_runs[0:2]
             if operator_runs:
-                if(app in ["bams", "bams_xs2"]):
+                if(app in ["bams", "bams_xs2", "bams_ch", "bams_heme"]):
                     link_bams_by_patient_id(operator_runs, "bams", request, sample_id, arguments, config, uncompleted_runs)
                 else:
                     link_single_sample_workflows_by_patient_id(operator_runs, directory, request, sample_id, arguments,
@@ -111,7 +112,7 @@ def get_operator_run(app_name, arguments, app_version=None, tags=None, config=No
     should_delete = arguments.get("--delete") or False
     all_runs = arguments.get("--all-runs") or False
     all_requests = arguments.get("--all-requests") or False
-
+    
     latest_operator_run = tags
     # operator_look_ahead(latest_operator_run, config, tags)
     if uncompleted_runs:
@@ -126,6 +127,10 @@ def get_operator_run(app_name, arguments, app_version=None, tags=None, config=No
                             params=latest_operator_run)
     latest_runs = response.json()["results"] 
 
+    try:
+        latest_runs = response.json()["results"] 
+    except:
+        breakpoint()
     if not latest_runs:
         if "igoRequestId" in tags:
             new_tag = tags.replace("igoRequestId", "requestId")
@@ -202,6 +207,7 @@ def get_arguments(arguments):
 def get_runs(operator_run_id, config, uncompleted_runs, all_requests=False):
     response_rslts = []
     seen_request_ids = {}
+    request_skips = set(["11674_L", "11674_P", "11674_K", "11674_Q_custom"])
     for oprn in operator_run_id:
         run_params = {
             "operator_run": oprn['id'],
@@ -214,10 +220,11 @@ def get_runs(operator_run_id, config, uncompleted_runs, all_requests=False):
         
         response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
                                 headers={'Authorization': 'Bearer %s' % config['token']}, params=run_params)
+                                
         if all_requests:
             request_id = response.json()["results"][0]['request_id']
             date = response.json()["results"][0]['created_date']
-            if request_id in seen_request_ids and seen_request_ids.get(request_id) > date:
+            if (request_id in seen_request_ids and seen_request_ids.get(request_id) > date) or (request_id in request_skips):
                 continue
             else:
                 seen_request_ids[request_id] = date
@@ -252,9 +259,19 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
     for run_meta in runs:
         if all_requests:
             request_id = run_meta["request_id"]
+            if request_id_prev != request_id:
+                try: 
+                    os.symlink(path.absolute(), path_without_version / "current")
+                except:
+                    print(f'Could not create current folder for: {path.absolute()}')
+        request_id_prev = request_id
         path = Path("./")
-        path_without_version = path / ("Project_" + request_id) / directory
-        path = path_without_version / version
+        if request_id is None: 
+            pass 
+        else:
+            path_without_version = path / ("Project_" + request_id) / directory
+            path = path_without_version / version
+
         path.mkdir(parents=True, exist_ok=True, mode=0o755)
         run = get_run_by_id(run_meta["id"], config)
         if should_delete:
@@ -268,20 +285,20 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
             except Exception as e:
                 print("could not delete symlink: {} ".format(path / run["id"]), file=sys.stderr)
         else:
-            # if is_run_manual(run, request_id):
-            #     print("Manual Run no linking in Project Directory, please see existing directory for results.", file=sys.stdout)
-            # else:
-                try:
-                    os.symlink(run["output_directory"], path / run["id"])
-                    print((path / run["id"]).absolute(), file=sys.stdout)
-                except Exception as e:
-                    print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
-
-    try:
+            try:
+                if os.path.islink(path / run["id"]) and not os.path.exists(path / run["id"]):
+                    run_path = path / run["id"]
+                    print(f"Removing broken symlink for: {run_path}")
+                    os.remove(path / run["id"])
+                os.symlink(run["output_directory"], path / run["id"])
+                print((path / run["id"]).absolute(), file=sys.stdout)
+            except Exception as e:
+                breakpoint()
+                print("could not create symlink from '{}' to '{}'".format(run["output_directory"], path / run["id"]), file=sys.stderr)
+    try: 
         os.unlink(path_without_version / "current")
-    except:
+    except: 
         pass
-
     if not should_delete:
         os.symlink(path.absolute(), path_without_version / "current")
     return "Completed"
@@ -290,17 +307,20 @@ def link_app(operator_runs, directory, request_id, sample_id, arguments, config,
 def link_single_sample_workflows_by_patient_id(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
     version = arguments.get("--dir-version") or operator_runs["app_version"]
     should_delete = arguments.get("--delete") or False
-
+    all_requests = arguments.get("--all-requests") or False
     path = Path("./") / directory
-    runs = get_runs(operator_runs, config, uncompleted_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs, all_requests)
+    seen_request_ids = set()
     if not runs:
         return
 
     for run_meta in runs:
         run = get_run_by_id(run_meta["id"], config)
         sample_key = None
-        if operator_runs[0]['app_name'] in ['access v2 nucleo qc agg', 'cmo_manifest']:
-            sample_path = path / request_id
+        
+        if (operator_runs[0]['app_name'] in REQUEST_PATIENT_APPS) and (run_meta["request_id"] not in seen_request_ids):
+            sample_path = path / run_meta["request_id"]
+            seen_request_ids.add(sample_path)
         else:
             if "cmoSampleIds" in run["tags"].keys():
                 sample_key = "cmoSampleIds"
@@ -331,9 +351,14 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
                 print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
+                if os.path.islink(sample_version_path) and not os.path.exists(sample_version_path):
+                    print(f"Removing broken symlink for: {sample_version_path}")
+                    os.remove(sample_version_path)
                 os.symlink(run["output_directory"], sample_version_path)
                 print(sample_version_path.absolute(), file=sys.stdout)
+
             except Exception as e:
+                breakpoint()
                 print("could not create symlink from '{}' to '{}'".format(sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
 
         try:
@@ -348,16 +373,15 @@ def link_single_sample_workflows_by_patient_id(operator_runs, directory, request
 
 def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
     version = arguments.get("--dir-version")
-
+    all_requests = arguments.get("--all-requests") or False
     path = Path("./") / directory / ("Project_" + request_id)
 
-    runs = get_runs(operator_runs, config, uncompleted_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs, all_requests)
 
     if not runs:
         return
 
     files = [] # (sample_id, /path/to/file)
-
     for run in runs:
         for file_group in get_files_by_run_id(run["id"], config):
             files = files + find_files_by_sample(file_group["value"], sample_id=sample_id)
@@ -379,11 +403,16 @@ def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arg
         sample_path = path
         sample_version_path = sample_path / version
         sample_version_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+        full_path = sample_version_path / file_name
 
         try:
+            if os.path.islink(full_path) and not os.path.exists(full_path):
+                    print(f"Removing broken symlink for: {full_path}")
+                    os.remove(full_path)
             os.symlink(file_path, sample_version_path / file_name)
             print((sample_version_path / file_name).absolute(), file=sys.stdout)
         except Exception as e:
+            breakpoint()
             print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
             continue
 
@@ -402,9 +431,10 @@ def link_bams_to_single_dir(operator_runs, directory, request_id, sample_id, arg
 def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arguments, config, uncompleted_runs):
     version = arguments.get("--dir-version") 
     should_delete = arguments.get("--delete") or False
+    all_requests = arguments.get("--all-requests") or False
 
     path = Path("./") / directory
-    runs = get_runs(operator_runs, config, uncompleted_runs)
+    runs = get_runs(operator_runs, config, uncompleted_runs, all_requests)
 
     if not runs:
         return
@@ -437,8 +467,13 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
 
         sample_path = path / patient_id / sample_id
         sample_version_path = sample_path / version
+        full_path = sample_version_path / file_name
+        file_name_index = file_name.replace(".bam", ".bai")
+        full_path_index = sample_version_path / file_name_index
 
         if (sample_version_path / file_name) in seen_paths:
+            breakpoint()
+            # 11674_L and 11674_K are old runs with bad sample names
             print(f"Skipping duplicate file {file_path} for sample {sample_id}", file=sys.stderr)
             continue
 
@@ -461,15 +496,21 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
                 print("could not delete folder: {} ".format(sample_version_path), file=sys.stderr)
         else:
             try:
-                os.symlink(file_path, sample_version_path / file_name)
-                print((sample_version_path / file_name).absolute(), file=sys.stdout)
-                seen_paths.add(sample_version_path / file_name)
+                if os.path.islink(full_path) and not os.path.exists(full_path):
+                    breakpoint()
+                    print(f"Removing broken symlink for: {full_path}")
+                    os.remove(full_path)
+                    if add_bai:
+                        os.remove(full_path_index)
+                os.symlink(file_path, full_path)
+                print((full_path).absolute(), file=sys.stdout)
+                seen_paths.add(full_path)
                 if add_bai:
-                    file_name_index = file_name.replace(".bam", ".bai")
-                    os.symlink(file_path, sample_version_path / file_name_index)
-                    print((sample_version_path / file_name_index).absolute(), file=sys.stdout)
+                    os.symlink(file_path, full_path_index)
+                    print((full_path_index).absolute(), file=sys.stdout)
             except Exception as e:
-                print("Could not create symlink from '{}' to '{}'".format(sample_version_path / file_name, file_path), file=sys.stderr)
+                breakpoint()
+                print("Could not create symlink from '{}' to '{}'".format(full_path, file_path), file=sys.stderr)
                 continue
 
         try:
@@ -485,16 +526,11 @@ def link_bams_by_patient_id(operator_runs, directory, request_id, sample_id, arg
 
     return "Completed"
 def is_run_manual(run, request_id):
-    pattern = "/work/access/production/data/bams/*"
+    pattern = r"/data1/core006/access/production/runs/Project_.*/bam_qc"
     match = re.match(pattern, run["output_directory"])
-    patient_dir = run["output_directory"] + '/current'
-    proj_dir = Path("./") / ("Project_" + request_id)
     if match:
-        if Path(patient_dir).is_dir():
-            return True
-        else:
-            raise FileNotFoundError(f'The folder {patient_dir} does not exist. Bams for request {request_id} were manually imported to Voyager. Please link patients in the data folder before linking the project folder.')
-
+        return True
+    return False
 def find_files_by_sample(file_group, sample_id = None):
     def traverse(file_group):
         files = []
