@@ -21,6 +21,7 @@ FLAG_TO_APPS = {
     "msi_xs2":("access v2 legacy MSI", "microsatellite_instability"),
     "cnv_xs2":("access v2 legacy CNV", "copy_number_variants"),
     "sv_xs2":("access v2 legacy SV", "structural_variants"),
+    "data_analysis":("access v2 data analysis", "data_analysis"),
     "dmpmanifest_ch": ("cmo_manifest", "manifest"),
     "bams_ch": ("cmo-ch nucleo", "bams"),
     "qc_ch": ("CMO-CH QC", "quality_control"),
@@ -35,7 +36,7 @@ FLAG_TO_APPS = {
     "sv_heme":("access heme legacy SV", "structural_variants"),
     "cnv_heme":("access heme legacy CNV", "copy_number_variants")
 }
-REQUEST_PATIENT_APPS = ['access v2 nucleo qc agg', 'cmo_manifest', "CMO-CH QC Agg", "heme nucleo qc agg",'JUNO PIPELINE: access v2 nucleo qc agg', 'JUNO PIPELINE: cmo_manifest', "JUNO PIPELINE: CMO-CH QC Agg", "JUNO PIPELINE: heme nucleo qc agg"]
+REQUEST_PATIENT_APPS = ['access v2 nucleo qc agg', 'cmo_manifest', "CMO-CH QC Agg", "heme nucleo qc agg", "access v2 data analysis", 'JUNO PIPELINE: access v2 nucleo qc agg', 'JUNO PIPELINE: cmo_manifest', "JUNO PIPELINE: CMO-CH QC Agg", "JUNO PIPELINE: heme nucleo qc agg", "JUNO PIPELINE: access v2 data analysis"]
 
 def access_commands(arguments, config):
     print('Running Linking')    
