@@ -24,11 +24,65 @@ def clinical_commands(arguments, config):
                 continue
             if app_prefix:
                 app_name = f'{app_prefix} {app_name}'
+            if sample_ids:
+                link_samples(sample_ids, app_name, app_version, directory, arguments, config)
+                continue
             operator_runs = get_operator_runs(app_name, app_version, page_size, max_pages, config)
             if operator_runs:
-                link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config,
-                                                           sample_ids=sample_ids)
+                link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config)
     return "Completed"
+
+
+def get_app_ids(app_name, app_version, config):
+    """Resolve an app name (and optional version) to the pipeline UUIDs beagle knows it by."""
+    params = {"name": app_name, "page_size": 1000}
+    if app_version:
+        params["version"] = app_version
+    response = requests.get(urljoin(config['beagle_endpoint'], config['api']['pipelines']),
+                            headers={'Authorization': 'Bearer %s' % config['token']}, params=params)
+    response.raise_for_status()
+    body = response.json()
+    pipelines = body["results"] if isinstance(body, dict) else body
+    return [p["id"] for p in pipelines]
+
+
+def get_latest_run_for_sample(sample_id, app_ids, config):
+    """Return the most recent completed run of the given apps tagged with sample_id, or None.
+    Tries each known sample tag key, since not every app tags samples the same way."""
+    for tag_key in SAMPLE_TAG_KEYS:
+        params = {
+            "status": "COMPLETED",
+            "tags": f"{tag_key}:{sample_id}",
+            "apps": app_ids,
+            "full": "true",
+            "page_size": 1000,
+        }
+        response = requests.get(urljoin(config['beagle_endpoint'], config['api']['run']),
+                                headers={'Authorization': 'Bearer %s' % config['token']}, params=params)
+        response.raise_for_status()
+        runs = response.json()["results"]
+        if runs:
+            # the run list endpoint does not guarantee ordering, so pick the newest ourselves
+            return max(runs, key=lambda r: r["created_date"])
+    return None
+
+
+def link_samples(sample_ids, app_name, app_version, directory, arguments, config):
+    """Link the most recent completed run for each requested sample, querying runs by sample tag."""
+    app_ids = get_app_ids(app_name, app_version, config)
+    if not app_ids:
+        print(f"Could not find app {app_name}:{app_version} in beagle", file=sys.stderr)
+        return
+    missing = []
+    for sample_id in sorted(sample_ids):
+        run = get_latest_run_for_sample(sample_id, app_ids, config)
+        if not run:
+            missing.append(sample_id)
+            print(f"No completed {app_name} run found for sample {sample_id}", file=sys.stderr)
+            continue
+        link_run(run, sample_id, directory, arguments)
+    if missing:
+        print(f"{len(missing)} of {len(sample_ids)} sample(s) had no completed run", file=sys.stderr)
 
 
 def get_sample_ids(arguments):
@@ -152,34 +206,21 @@ def link_single_run(run_id, directory, arguments, config):
     return "Completed"
 
 
-def link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config, sample_ids=None):
-    """Link the most recent run for each sample. If sample_ids is given, only those
-    samples are linked and the scan stops once all of them have been found."""
+def link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config):
+    """Link the most recent run for each sample found in the given operator runs."""
     # runs come back newest first, so the first run seen for a sample is its most recent
     seen_sample_ids = set()
 
     for run_meta in get_runs(operator_runs, config):
         run = get_run_by_id(run_meta["id"], config)
-        run_sample_id = get_sample_id(run)
-        if not run_sample_id:
+        sample_id = get_sample_id(run)
+        if not sample_id:
             continue
-        if sample_ids and run_sample_id not in sample_ids:
+        if sample_id in seen_sample_ids:
+            print(f'Skipping older run {run["id"]} for sample {sample_id}', file=sys.stderr)
             continue
-        if run_sample_id in seen_sample_ids:
-            print(f'Skipping older run {run["id"]} for sample {run_sample_id}', file=sys.stderr)
-            continue
-        seen_sample_ids.add(run_sample_id)
-        link_run(run, run_sample_id, directory, arguments)
-        if sample_ids and seen_sample_ids >= sample_ids:
-            break
-
-    if sample_ids:
-        missing = sorted(sample_ids - seen_sample_ids)
-        for sample_id in missing:
-            print(f"No completed run found for sample {sample_id}", file=sys.stderr)
-        if missing:
-            print(f"{len(missing)} of {len(sample_ids)} sample(s) not found in the pulled operator runs; "
-                  f"try --all-pages or --run-id", file=sys.stderr)
+        seen_sample_ids.add(sample_id)
+        link_run(run, sample_id, directory, arguments)
     return "Completed"
 
 

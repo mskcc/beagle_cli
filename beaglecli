@@ -102,7 +102,8 @@ Usage:
   beaglecli cmoch link-patient [--all-requests] [--all-runs] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli heme link [--single-dir] [--all-requests] [--app-prefix=<app-prefix>] [--all-runs] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
   beaglecli heme link-patient [--all-runs] [--all-requests] [--app-prefix=<app-prefix>] [--request-ids=<request_ids>]... [--request-ids-file=<request-ids-file>] [--sample-id=<sample_id>] [--dir-version=<dir_version>] [--apps=<bams>]... [--delete]
-  beaglecli clinical link-patient --dir-version=<dir_version> --apps=<stride>... [--app-prefix=<app-prefix>] [--page-size=<page_size>] [--pages=<pages> | --all-pages] [--sample-id=<sample_id>] [--sample-ids-file=<sample_ids_file>] [--delete]
+  beaglecli clinical link-patient --dir-version=<dir_version> --apps=<stride>... [--app-prefix=<app-prefix>] [--page-size=<page_size>] [--pages=<pages> | --all-pages] [--delete]
+  beaglecli clinical link-patient --dir-version=<dir_version> --apps=<stride>... [--app-prefix=<app-prefix>] (--sample-id=<sample_id> | --sample-ids-file=<sample_ids_file>) [--delete]
   beaglecli clinical link-patient --dir-version=<dir_version> --apps=<stride>... --run-id=<run_id> [--delete]
   beaglecli --version
 
