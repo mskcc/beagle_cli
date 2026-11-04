@@ -14,15 +14,39 @@ DEFAULT_PAGE_SIZE = 100
 def clinical_commands(arguments, config):
     print('Running Linking')
     apps, app_prefix, page_size, max_pages = get_arguments(arguments)
+    run_id = arguments.get('--run-id')
+    sample_ids = get_sample_ids(arguments)
     if arguments.get('link-patient'):
         for (app, app_version) in apps:
             (app_name, directory) = FLAG_TO_APPS[app]
+            if run_id:
+                link_single_run(run_id, directory, arguments, config)
+                continue
             if app_prefix:
                 app_name = f'{app_prefix} {app_name}'
             operator_runs = get_operator_runs(app_name, app_version, page_size, max_pages, config)
             if operator_runs:
-                link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config)
+                link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config,
+                                                           sample_ids=sample_ids)
     return "Completed"
+
+
+def get_sample_ids(arguments):
+    """Collect sample ids from --sample-id and --sample-ids-file (one sample per line).
+    Returns None when neither is given, meaning link every sample."""
+    sample_ids = set()
+    if arguments.get('--sample-id'):
+        sample_ids.add(arguments['--sample-id'].strip())
+    sample_ids_file = arguments.get('--sample-ids-file')
+    if sample_ids_file:
+        with open(sample_ids_file) as f:
+            for line in f:
+                sample_id = line.strip().strip(',')
+                if sample_id and not sample_id.startswith('#'):
+                    sample_ids.add(sample_id)
+        if not sample_ids:
+            raise ValueError(f"No sample ids found in {sample_ids_file}")
+    return sample_ids or None
 
 
 def get_arguments(arguments):
@@ -118,63 +142,90 @@ def get_sample_id(run):
     raise LookupError(f'Run {run["id"]} is missing Sample Meta Data')
 
 
-def link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config):
-    version = arguments.get("--dir-version")
-    should_delete = arguments.get("--delete") or False
-    path = Path("./") / directory
+def link_single_run(run_id, directory, arguments, config):
+    """Link (or unlink with --delete) exactly one run, looked up by its run id."""
+    run = get_run_by_id(run_id, config)
+    sample_id = get_sample_id(run)
+    if not sample_id:
+        return "Completed"
+    link_run(run, sample_id, directory, arguments)
+    return "Completed"
+
+
+def link_single_sample_workflows_by_patient_id(operator_runs, directory, arguments, config, sample_ids=None):
+    """Link the most recent run for each sample. If sample_ids is given, only those
+    samples are linked and the scan stops once all of them have been found."""
     # runs come back newest first, so the first run seen for a sample is its most recent
     seen_sample_ids = set()
 
     for run_meta in get_runs(operator_runs, config):
         run = get_run_by_id(run_meta["id"], config)
-        sample_id = get_sample_id(run)
-        if not sample_id:
+        run_sample_id = get_sample_id(run)
+        if not run_sample_id:
             continue
-        if sample_id in seen_sample_ids:
-            print(f'Skipping older run {run["id"]} for sample {sample_id}', file=sys.stderr)
+        if sample_ids and run_sample_id not in sample_ids:
             continue
-        seen_sample_ids.add(sample_id)
+        if run_sample_id in seen_sample_ids:
+            print(f'Skipping older run {run["id"]} for sample {run_sample_id}', file=sys.stderr)
+            continue
+        seen_sample_ids.add(run_sample_id)
+        link_run(run, run_sample_id, directory, arguments)
+        if sample_ids and seen_sample_ids >= sample_ids:
+            break
 
-        a, b, _ = sample_id.split("-", 2)
-        patient_id = "-".join([a, b])
-        sample_path = path / patient_id / sample_id
-        sample_version_path = sample_path / version
-        current_path = sample_path / "current"
+    if sample_ids:
+        missing = sorted(sample_ids - seen_sample_ids)
+        for sample_id in missing:
+            print(f"No completed run found for sample {sample_id}", file=sys.stderr)
+        if missing:
+            print(f"{len(missing)} of {len(sample_ids)} sample(s) not found in the pulled operator runs; "
+                  f"try --all-pages or --run-id", file=sys.stderr)
+    return "Completed"
 
-        if should_delete:
-            if not os.path.islink(sample_version_path):
-                print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
-                continue
-            os.unlink(sample_version_path)
+
+def link_run(run, sample_id, directory, arguments):
+    version = arguments.get("--dir-version")
+    should_delete = arguments.get("--delete") or False
+    path = Path("./") / directory
+
+    a, b, _ = sample_id.split("-", 2)
+    patient_id = "-".join([a, b])
+    sample_path = path / patient_id / sample_id
+    sample_version_path = sample_path / version
+    current_path = sample_path / "current"
+
+    if should_delete:
+        if not os.path.islink(sample_version_path):
+            print("could not delete symlink: {} ".format(sample_version_path), file=sys.stderr)
+            return
+        os.unlink(sample_version_path)
+        print(sample_version_path.absolute(), file=sys.stdout)
+        if os.path.islink(current_path) and os.readlink(current_path) == str(sample_version_path.absolute()):
+            os.unlink(current_path)
+        if len(os.listdir(sample_path)) == 0:
+            print("no remaining sample versions, deleting sample directory {} ".format(sample_path), file=sys.stderr)
+            os.rmdir(sample_path)
+            if len(os.listdir(sample_path.parent)) == 0:
+                os.rmdir(sample_path.parent)
+        return
+
+    sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
+    if os.path.islink(sample_version_path):
+        if os.readlink(sample_version_path) == run["output_directory"]:
             print(sample_version_path.absolute(), file=sys.stdout)
-            if os.path.islink(current_path) and os.readlink(current_path) == str(sample_version_path.absolute()):
-                os.unlink(current_path)
-            if len(os.listdir(sample_path)) == 0:
-                print("no remaining sample versions, deleting sample directory {} ".format(sample_path), file=sys.stderr)
-                os.rmdir(sample_path)
-                if len(os.listdir(sample_path.parent)) == 0:
-                    os.rmdir(sample_path.parent)
-            continue
-
-        sample_path.mkdir(parents=True, exist_ok=True, mode=0o755)
-        if os.path.islink(sample_version_path):
-            if os.readlink(sample_version_path) == run["output_directory"]:
-                print(sample_version_path.absolute(), file=sys.stdout)
-            else:
-                print(f"Updating symlink to most recent run for: {sample_version_path}", file=sys.stderr)
-                os.remove(sample_version_path)
-                os.symlink(run["output_directory"], sample_version_path)
-                print(sample_version_path.absolute(), file=sys.stdout)
-        elif os.path.exists(sample_version_path):
-            print("could not create symlink from '{}' to '{}', path already exists".format(
-                sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
-            continue
         else:
+            print(f"Updating symlink to run {run['id']} for: {sample_version_path}", file=sys.stderr)
+            os.remove(sample_version_path)
             os.symlink(run["output_directory"], sample_version_path)
             print(sample_version_path.absolute(), file=sys.stdout)
+    elif os.path.exists(sample_version_path):
+        print("could not create symlink from '{}' to '{}', path already exists".format(
+            sample_version_path.absolute(), run["output_directory"]), file=sys.stderr)
+        return
+    else:
+        os.symlink(run["output_directory"], sample_version_path)
+        print(sample_version_path.absolute(), file=sys.stdout)
 
-        if os.path.islink(current_path):
-            os.unlink(current_path)
-        os.symlink(sample_version_path.absolute(), current_path)
-
-    return "Completed"
+    if os.path.islink(current_path):
+        os.unlink(current_path)
+    os.symlink(sample_version_path.absolute(), current_path)
