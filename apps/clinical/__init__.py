@@ -267,6 +267,9 @@ def link_run(run, sample_id, directory, arguments):
         os.symlink(run["output_directory"], sample_version_path)
         print(sample_version_path.absolute(), file=sys.stdout)
 
+    if arguments.get("--no-current"):
+        # e.g. evaluation runs linked next to production versions: leave `current` alone
+        return
     if os.path.islink(current_path):
         os.unlink(current_path)
     os.symlink(sample_version_path.absolute(), current_path)
