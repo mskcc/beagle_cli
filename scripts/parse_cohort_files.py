@@ -8,7 +8,7 @@ BEAGLE = beagle_api.AccessBeagleEndpoint()
 
 def create_check_script(file_path,
                         output_name="tempo_check_script.sh",
-                        output_root_path="/juno/work/tempo/wes_repo/Results/v2.0.x/bams"):
+                        output_root_path="/data1/core006/ccs_pipelines/tempo/wes_repo/Results/v2.1.x/bams"):
     """
     Args:
         file_path: path to file with ciTags of samples we need to check

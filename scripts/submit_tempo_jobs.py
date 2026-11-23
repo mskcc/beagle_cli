@@ -27,7 +27,7 @@ def create_pairs(sample_list):
     return pair_json
 
 
-def create_body(cohort_id, sample_list, job_group_id=None):
+def create_body(cohort_id, sample_list, file_group_id=None, job_group_id=None):
     pair_json = create_pairs(sample_list)
     body = dict()
     body["pairs"] = pair_json
@@ -35,6 +35,8 @@ def create_body(cohort_id, sample_list, job_group_id=None):
     body["request_id"] = cohort_id
     body["pipelines"] = [PIPELINE]
     body["pipeline_versions"] = [PIPELINE_VERSION]
+    if file_group_id:
+        body["file_group_id"] = file_group_id
     if job_group_id:
         body["job_group_id"] = job_group_id
     return body
@@ -59,12 +61,14 @@ def split_into_batches(sample_list):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("python3 submit_tempo_jobs.py <file_path> <cohort_id> [<job_group_id>]")
+    if len(sys.argv) < 3:
+        print("python3 submit_tempo_jobs.py <file_path> <cohort_id> [<file_group_id>] [<job_group_id>]")
         exit(1)
     sample_file_path = sys.argv[1]
     cohort_id = sys.argv[2]
-    if len(sys.argv) > 3:
+    if len(sys.argv) == 4:
+        file_group_id = sys.argv[3]
+    elif len(sys.argv) == 5:
         job_group_id = sys.argv[3]
     with open(sample_file_path, 'r') as f:
         sample_list = f.readlines()
